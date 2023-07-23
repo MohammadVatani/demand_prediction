@@ -22,10 +22,56 @@ import datetime
 import pandas as pd
 import numpy as np
 import warnings
-warnings.simplefilter('ignore')
-
-
+from itertools import product
 from sklearn.model_selection import train_test_split
+
+warnings.simplefilter('ignore')
+```
+
+## config
+
+```{python}
+DATA_FILE_PATHS = 'D:/rahnema/final project/dataset/'
+
+OUTPUT_PATH = 'D:/rahnema/final project/label/label.parquet'
+```
+
+<!-- #region id="rluQ2Egj6oBm" -->
+## Load Data
+<!-- #endregion -->
+
+```{python id="tssiMQFc6niv"}
+def load_data(file_paths, start_date=None):
+    df = pd.read_parquet(file_paths)
+    df['date'] = df['tpep_pickup_datetime'].dt.date.astype(str)
+
+    if start_date:
+        df = df[df['date'] > start_date].reset_index(drop=True)
+
+    return df
+
+
+rides_df = load_data(DATA_FILE_PATHS, '2023-01-01')
+print(rides_df.shape)
+rides_df.head()
+```
+
+# aggregate data and labeling
+
+```{python}
+def labeling(rides_df: pd.DataFrame):
+    aggregated_df = rides_df.groupby(['date', 'PULocationID']).size().reset_index(name='count')
+    unique_dates = rides_df['date'].unique()
+    unique_pu_location_ids = rides_df['PULocationID'].unique()
+    all_combinations = list(product(unique_dates, unique_pu_location_ids))
+    combinations_df = pd.DataFrame(all_combinations, columns=['date', 'PULocationID'])
+    label_df = aggregated_df.merge(combinations_df, how='right', on=['date', 'PULocationID']).fillna(0)
+    return label_df
+
+
+labels_df = labeling(rides_df)
+print(labels_df.shape)
+labels_df.head()
 ```
 
 <!-- #region id="xyDs-W29Q0L8" -->
@@ -33,21 +79,20 @@ from sklearn.model_selection import train_test_split
 <!-- #endregion -->
 
 ```{python id="lApedAYa__Iy"}
-df = df.sort_values(['date'])
+feature_df = labels_df.sort_values(['date'])
 ```
 
 ```{python colab={'base_uri': 'https://localhost:8080/', 'height': 204}, id="JkT0Cfe3KcfI", outputId="f7cd6dd7-68c7-4200-fed2-52cdeaa050ff"}
 # Extracting new features based on pickup date
 
-df['date']=df['date'].astype('datetime64')
+feature_df['date']=feature_df['date'].astype('datetime64')
 
 # Extract the pickup day of the month from the datetime column
-df['PU_day_of_month'] = df['date'].dt.day.astype(np.uint8)
+feature_df['PU_day_of_month'] = feature_df['date'].dt.day.astype(np.uint8)
 
 # Extract the pickup day of the week (0-6) from the datetime column
-df['PU_day_of_week'] = df['date'].dt.weekday.astype(np.uint8)
+feature_df['PU_day_of_week'] = feature_df['date'].dt.weekday.astype(np.uint8)
 
-df.head(5)
 ```
 
 <!-- #region id="n3z43ZwBQ9aU" -->
@@ -56,53 +101,42 @@ df.head(5)
 <!-- #endregion -->
 
 ```{python id="ss0dGcrkQ_uf"}
-df['last_day'] = ''
-df['last_week'] = ''
-for i in df.index:
-    df['last_day'].loc[i] = df['date'].loc[i] - datetime.timedelta(days=1)
-    df['last_week'].loc[i] = df['date'].loc[i] - datetime.timedelta(days=7)
+feature_df['last_day'] = ''
+feature_df['last_week'] = ''
+for i in feature_df.index:
+    feature_df['last_day'].loc[i] = feature_df['date'].loc[i] - datetime.timedelta(days=1)
+    feature_df['last_week'].loc[i] = feature_df['date'].loc[i] - datetime.timedelta(days=7)
 ```
 
 ```{python colab={'base_uri': 'https://localhost:8080/', 'height': 333}, id="mHzA0JqTm6-O", outputId="4b7e8160-483a-4436-97b5-8f4aecb3b479"}
 def last_demand_count(df,last_date,LID):
     return (df[(df['date'] == last_date) & (df['PULocationID'] == LID)]['count']).values[0]
 
-
-df['last_day_demand_cnt'] = 0
-df['last_week_demand_cnt'] = 0
-for i in df.index:
+feature_df['last_day_demand_cnt'] = 0
+feature_df['last_week_demand_cnt'] = 0
+for i in feature_df.index:
     try:
-        df['last_day_demand_cnt'].loc[i] = last_demand_count(df,df['last_day'].loc[i],df['PULocationID'].loc[i])
+        feature_df['last_day_demand_cnt'].loc[i] = last_demand_count(feature_df,feature_df['last_day'].loc[i],
+        feature_df['PULocationID'].loc[i])
     except IndexError:
-        df['last_day_demand_cnt'].loc[i] = 0
+        feature_df['last_day_demand_cnt'].loc[i] = 0
 
     try:
-            df['last_week_demand_cnt'].loc[i] = last_demand_count(df,df['last_week'].loc[i],df['PULocationID'].loc[i])
+        feature_df['last_week_demand_cnt'].loc[i] = last_demand_count(feature_df,feature_df['last_week'].loc[i],
+        feature_df['PULocationID'].loc[i])
     except IndexError:
-        df['last_week_demand_cnt'].loc[i] = 0
+        feature_df['last_week_demand_cnt'].loc[i] = 0
 
-df.head(5)
+```
+
+```{python}
+feature_df[(feature_df['PULocationID'] == 79)].head(30)
 ```
 
 ```{python id="sk32WEWjpVdB"}
-df.to_parquet('../data/featureDS.parquet')
+feature_df.to_parquet(OUTPUT_PATH)
 ```
 
-```{python id="fNfRlslxJj-_"}
-test_data = df[df['date'] >= datetime.datetime(2023, 4, 1)]
-df = df[df['date'] < datetime.datetime(2023, 4, 1)]
-```
+```{python}
 
-```{python id="uFPI1eCYqYyB"}
-df = df.drop(['date', 'last_day', 'last_week'], axis=1)
-test_data = test_data.drop(['date', 'last_day', 'last_week'], axis=1)
-```
-
-```{python id="eoTmtHn-ruLL"}
-X = df.drop('count', axis=1)
-target = df['count']
-```
-
-```{python id="UsFqNzGYhw_i"}
-X_train, X_test, y_train, y_test = train_test_split(X, target, test_size=0.2, shuffle=False)
 ```
