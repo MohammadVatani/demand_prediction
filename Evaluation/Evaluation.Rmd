@@ -76,7 +76,7 @@ grouped_df['pred_count'] = grouped_df['count']
 grouped_df.info()
 ```
 
-# Report MAPE
+# Report by MAPE Metric
 
 
 ### Define MAPE Metric Function
