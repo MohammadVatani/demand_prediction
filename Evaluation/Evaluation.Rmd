@@ -1,0 +1,172 @@
+---
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .Rmd
+      format_name: rmarkdown
+      format_version: '1.2'
+      jupytext_version: 1.14.4
+  kernelspec:
+    display_name: Python 3 (ipykernel)
+    language: python
+    name: python3
+---
+
+# Import Required Libraries
+
+```{python tags=c()}
+import pyarrow.parquet as pq
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt
+```
+
+# Load Data files
+
+```{python}
+DATA_FILE_PATHS = '../data'
+start_date = pd.to_datetime('2023-04-01 00:00:00')
+end_date = pd.to_datetime('2023-05-01 00:00:00')
+```
+
+```{python}
+trips_pq = pq.read_table(DATA_FILE_PATHS)
+trips_df = trips_pq.to_pandas()
+trips_df.shape
+```
+
+```{python}
+filtered_trips_df = trips_df[(trips_df['tpep_pickup_datetime'] >= start_date) & (
+    trips_df['tpep_pickup_datetime'] < end_date)]
+```
+
+```{python}
+# Sort the DataFrame based on the 'tpep_pickup_datetime' column in ascending order
+filtered_trips_df = filtered_trips_df.sort_values(by='tpep_pickup_datetime')
+```
+
+```{python}
+filtered_trips_df = filtered_trips_df.reset_index(drop=True)
+```
+
+```{python}
+filtered_trips_df['tpep_pickup_datetime'] = filtered_trips_df['tpep_pickup_datetime'].dt.date
+```
+
+```{python tags=c()}
+filtered_trips_df.head(10)
+```
+
+```{python}
+# 
+grouped_df = filtered_trips_df.groupby(
+    ['tpep_pickup_datetime', 'PULocationID']).size().reset_index(name='count')
+```
+
+```{python}
+grouped_df['tpep_pickup_datetime'] = pd.to_datetime(
+    grouped_df['tpep_pickup_datetime'])
+```
+
+```{python}
+grouped_df['pred_count'] = grouped_df['count']
+```
+
+```{python}
+grouped_df.info()
+```
+
+# Report MAPE
+
+
+### Define MAPE Metric Function
+
+```{python}
+# Define the MAPE calculation function
+def calculate_mape(actual, predicted):
+    return (abs((actual - predicted) / actual)).mean() * 100
+
+
+# Calculate MAPE
+mape = calculate_mape(grouped_df['count'], grouped_df['count'])
+print("MAPE: {:.2f}%".format(mape))
+```
+
+### Calculate MAPE per LocationID
+
+```{python}
+def calculate_mape_locationID(df, PULocationID):
+    selected_df = df[df['PULocationID'] == PULocationID]
+    actual = selected_df['count']
+    predicted = selected_df['pred_count']
+    mape = calculate_mape(actual, predicted)
+    return mape
+```
+
+```{python}
+locationID_mape = 263
+calculate_mape_locationID(grouped_df, locationID_mape)
+print("MAPE for LocationID {}: {:.2f}%".format(locationID_mape, mape))
+```
+
+### Calculate Average MAPE per all LocationIDs
+
+```{python}
+PULocationIDs = grouped_df['PULocationID'].unique()
+PULocationIDs.sort()
+for locationID in PULocationIDs:
+    mape_all = []
+    mape_all.append(calculate_mape_locationID(grouped_df, locationID))
+    AvgMAPE = sum(mape_all)/len(PULocationIDs)
+
+print("Average MAPE per LocationIDs: {:.2f}%".format(mape))
+```
+
+## Visualization
+
+Zones (Borough): **EWR, Queens, Bronx, Manhattan, Staten Island, Brooklyn**
+
+Date Range: **2023-04-01_2023-04-30**
+
+```{python}
+# This Function shows demand on map based on selected date on month
+# Becuase of to many locationIDs, we limited our visualization to each zone(Borough)
+def visualize_demand_zone_date(zone, date):
+    shape = gpd.read_file('../map_data/taxi_zones/taxi_zones.shp')
+    counts_PU = grouped_df.rename(columns={'PULocationID': 'LocationID'})
+    counts_PU = counts_PU[counts_PU['tpep_pickup_datetime'] == date]
+    merged_gdf = shape.merge(counts_PU, on='LocationID', how='left')
+    merged_gdf_selected = merged_gdf[merged_gdf['borough'] == zone]
+    # Create a figure with two subplots (maps side by side)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 8))
+
+    # Plot the first map with 'count' column on the left subplot
+    merged_gdf_selected.plot(
+        column='count', cmap='Oranges', legend=True, ax=axes[0])
+    axes[0].set_title('Actual')
+    axes[0].get_xaxis().set_visible(False)
+    axes[0].get_yaxis().set_visible(False)
+    for idx, row in merged_gdf_selected.iterrows():
+        location_id = row['LocationID']
+        x, y = row.geometry.centroid.x, row.geometry.centroid.y
+        axes[0].text(x, y, str(location_id), fontsize=8,
+                     ha='center', va='center', color='black')
+
+    # Plot the second map with 'pred' column on the right subplot
+    merged_gdf_selected.plot(
+        column='pred_count', cmap='Blues', legend=True, ax=axes[1])
+    axes[1].set_title('Prediction')
+    axes[1].get_xaxis().set_visible(False)
+    axes[1].get_yaxis().set_visible(False)
+    for idx, row in merged_gdf_selected.iterrows():
+        location_id = row['LocationID']
+        x, y = row.geometry.centroid.x, row.geometry.centroid.y
+        axes[1].text(x, y, str(location_id), fontsize=8,
+                     ha='center', va='center', color='black')
+
+    plt.show()
+```
+
+```{python}
+visualize_demand_zone_date('Manhattan', '2023-04-30')
+```
