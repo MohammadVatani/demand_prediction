@@ -80,6 +80,8 @@ labels_df.head()
 <!-- #endregion -->
 
 ```{python colab={'base_uri': 'https://localhost:8080/', 'height': 204}, id="JkT0Cfe3KcfI", outputId="f7cd6dd7-68c7-4200-fed2-52cdeaa050ff"}
+feature_df['count']=feature_df['count'] + 100
+
 feature_df['date']=feature_df['date'].astype('datetime64')
 
 feature_df['PU_day_of_month'] = feature_df['date'].dt.day.astype(np.uint8)
