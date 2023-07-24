@@ -17,27 +17,28 @@ jupyter:
 <!-- #endregion -->
 
 ```{python id="SKFmAIzF5K8j"}
-import time
 import datetime
-import pandas as pd
 import numpy as np
+import pandas as pd
+import time
 import warnings
+
 from itertools import product
 from sklearn.model_selection import train_test_split
 
 warnings.simplefilter('ignore')
 ```
 
-## config
+### config
 
 ```{python}
 DATA_FILE_PATHS = 'D:/rahnema/final project/dataset/'
-
-OUTPUT_PATH = 'D:/rahnema/final project/label/label.parquet'
+OUTPUT_PATH = 'D:/rahnema/final project/label/feature.parquet'
+START_DATE = '2023-01-01'
 ```
 
 <!-- #region id="rluQ2Egj6oBm" -->
-## Load Data
+### Load Data
 <!-- #endregion -->
 
 ```{python id="tssiMQFc6niv"}
@@ -51,12 +52,12 @@ def load_data(file_paths, start_date=None):
     return df
 
 
-rides_df = load_data(DATA_FILE_PATHS, '2023-01-01')
+rides_df = load_data(DATA_FILE_PATHS, START_DATE)
 print(rides_df.shape)
 rides_df.head()
 ```
 
-# aggregate data and labeling
+### aggregate data and labeling
 
 ```{python}
 def labeling(rides_df: pd.DataFrame):
@@ -75,62 +76,50 @@ labels_df.head()
 ```
 
 <!-- #region id="xyDs-W29Q0L8" -->
-## Extracting  Features (Day of week / Day of Month)
+### Day of week / Day of Month Features
 <!-- #endregion -->
 
-```{python id="lApedAYa__Iy"}
-feature_df = labels_df.sort_values(['date'])
-```
-
 ```{python colab={'base_uri': 'https://localhost:8080/', 'height': 204}, id="JkT0Cfe3KcfI", outputId="f7cd6dd7-68c7-4200-fed2-52cdeaa050ff"}
-# Extracting new features based on pickup date
-
 feature_df['date']=feature_df['date'].astype('datetime64')
 
-# Extract the pickup day of the month from the datetime column
 feature_df['PU_day_of_month'] = feature_df['date'].dt.day.astype(np.uint8)
 
-# Extract the pickup day of the week (0-6) from the datetime column
 feature_df['PU_day_of_week'] = feature_df['date'].dt.weekday.astype(np.uint8)
+
+print(feature_df.shape)
+feature_df.head()
 
 ```
 
 <!-- #region id="n3z43ZwBQ9aU" -->
-## Extracting  Features (last_day_deman_cnt / last_week_deman_cnt)
+### last_day_deman_count / last_week_deman_count Features
 
 <!-- #endregion -->
 
 ```{python id="ss0dGcrkQ_uf"}
 feature_df['last_day'] = ''
 feature_df['last_week'] = ''
+
 for i in feature_df.index:
     feature_df['last_day'].loc[i] = feature_df['date'].loc[i] - datetime.timedelta(days=1)
     feature_df['last_week'].loc[i] = feature_df['date'].loc[i] - datetime.timedelta(days=7)
 ```
 
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 333}, id="mHzA0JqTm6-O", outputId="4b7e8160-483a-4436-97b5-8f4aecb3b479"}
-def last_demand_count(df,last_date,LID):
-    return (df[(df['date'] == last_date) & (df['PULocationID'] == LID)]['count']).values[0]
+```{python}
+feature_df = feature_df.sort_values(['date'])
+feature_df['last_day_demand'] = feature_df.groupby(['PULocationID'])['count'].shift(1)
+feature_df['last_week_demand'] = feature_df.groupby(['PULocationID'])['count'].shift(7)
+feature_df['last_day_demand'].fillna(0,inplace = True)
+feature_df['last_week_demand'].fillna(0,inplace = True)
 
-feature_df['last_day_demand_cnt'] = 0
-feature_df['last_week_demand_cnt'] = 0
-for i in feature_df.index:
-    try:
-        feature_df['last_day_demand_cnt'].loc[i] = last_demand_count(feature_df,feature_df['last_day'].loc[i],
-        feature_df['PULocationID'].loc[i])
-    except IndexError:
-        feature_df['last_day_demand_cnt'].loc[i] = 0
-
-    try:
-        feature_df['last_week_demand_cnt'].loc[i] = last_demand_count(feature_df,feature_df['last_week'].loc[i],
-        feature_df['PULocationID'].loc[i])
-    except IndexError:
-        feature_df['last_week_demand_cnt'].loc[i] = 0
-
+print(feature_df.shape)
+feature_df.head()
 ```
 
+### checking
+
 ```{python}
-feature_df[(feature_df['PULocationID'] == 79)].head(30)
+feature_df[(feature_df['PULocationID'] == 79)].tail(5)
 ```
 
 ```{python id="sk32WEWjpVdB"}
