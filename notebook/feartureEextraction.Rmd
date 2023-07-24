@@ -70,9 +70,9 @@ def labeling(rides_df: pd.DataFrame):
     return label_df
 
 
-labels_df = labeling(rides_df)
-print(labels_df.shape)
-labels_df.head()
+rides_df = labeling(rides_df)
+print(rides_df.shape)
+rides_df.head()
 ```
 
 <!-- #region id="xyDs-W29Q0L8" -->
@@ -80,52 +80,60 @@ labels_df.head()
 <!-- #endregion -->
 
 ```{python colab={'base_uri': 'https://localhost:8080/', 'height': 204}, id="JkT0Cfe3KcfI", outputId="f7cd6dd7-68c7-4200-fed2-52cdeaa050ff"}
-feature_df['count']=feature_df['count'] + 100
+rides_df['count']=rides_df['count'] + 100
 
-feature_df['date']=feature_df['date'].astype('datetime64')
+rides_df['date']=rides_df['date'].astype('datetime64')
 
-feature_df['PU_day_of_month'] = feature_df['date'].dt.day.astype(np.uint8)
+rides_df['PU_day_of_month'] = rides_df['date'].dt.day.astype(np.uint8)
 
-feature_df['PU_day_of_week'] = feature_df['date'].dt.weekday.astype(np.uint8)
+rides_df['PU_day_of_week'] = rides_df['date'].dt.weekday.astype(np.uint8)
 
-print(feature_df.shape)
-feature_df.head()
+print(rides_df.shape)
+rides_df.head()
 
 ```
 
 <!-- #region id="n3z43ZwBQ9aU" -->
-### last_day_deman_count / last_week_deman_count Features
+### last_day_deman and  last_week_deman Features
 
 <!-- #endregion -->
 
 ```{python id="ss0dGcrkQ_uf"}
-feature_df['last_day'] = ''
-feature_df['last_week'] = ''
+rides_df['last_day'] = ''
+rides_df['last_week'] = ''
 
-for i in feature_df.index:
-    feature_df['last_day'].loc[i] = feature_df['date'].loc[i] - datetime.timedelta(days=1)
-    feature_df['last_week'].loc[i] = feature_df['date'].loc[i] - datetime.timedelta(days=7)
+for i in rides_df.index:
+    rides_df['last_day'].loc[i] = rides_df['date'].loc[i] - datetime.timedelta(days=1)
+    rides_df['last_week'].loc[i] = rides_df['date'].loc[i] - datetime.timedelta(days=7)
 ```
 
 ```{python}
-feature_df = feature_df.sort_values(['date'])
-feature_df['last_day_demand'] = feature_df.groupby(['PULocationID'])['count'].shift(1)
-feature_df['last_week_demand'] = feature_df.groupby(['PULocationID'])['count'].shift(7)
-feature_df['last_day_demand'].fillna(0,inplace = True)
-feature_df['last_week_demand'].fillna(0,inplace = True)
+rides_df = rides_df.sort_values(['date'])
+rides_df['last_day_demand'] = rides_df.groupby(['PULocationID'])['count'].shift(1)
+rides_df['last_week_demand'] = rides_df.groupby(['PULocationID'])['count'].shift(7)
+rides_df['last_day_demand'].fillna(0,inplace = True)
+rides_df['last_week_demand'].fillna(0,inplace = True)
 
-print(feature_df.shape)
-feature_df.head()
+print(rides_df.shape)
+rides_df.head()
 ```
 
 ### checking
 
 ```{python}
-feature_df[(feature_df['PULocationID'] == 79)].tail(5)
+rides_df[(rides_df['PULocationID'] == 79)].tail(5)
+```
+
+### remove extra fileds and save dataset
+
+```{python}
+rides_df = rides_df.drop(['last_day', 'last_week'], axis=1)
+print(rides_df.shape)
+rides_df.head()
 ```
 
 ```{python id="sk32WEWjpVdB"}
-feature_df.to_parquet(OUTPUT_PATH)
+rides_df.to_parquet(OUTPUT_PATH)
 ```
 
 ```{python}
