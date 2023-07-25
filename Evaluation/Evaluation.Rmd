@@ -12,7 +12,7 @@ jupyter:
     name: python3
 ---
 
-# Import Required Libraries
+# Imports
 
 ```{python tags=c()}
 import geopandas as gpd
@@ -23,13 +23,16 @@ import pyarrow.parquet as pq
 from itertools import product
 ```
 
-# Load Data files
+# Config
 
 ```{python}
 DATA_FILE_PATHS = '/workspace/rahnemacollege/Project/Git/demand-prediction/data'
-start_date = pd.to_datetime('2023-04-01 00:00:00')
-end_date = pd.to_datetime('2023-05-01 00:00:00')
+SHAPE_FILE_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/map_data/taxi_zones/taxi_zones.shp'
+start_date = '2023-03-31'
+end_date = '2023-05-01'
 ```
+
+# Load Data files
 
 ```{python}
 def load_data(file_paths, start_date=None):
@@ -42,7 +45,7 @@ def load_data(file_paths, start_date=None):
     return df
 
 
-rides_df = load_data(DATA_FILE_PATHS, '2023-01-01')
+rides_df = load_data(DATA_FILE_PATHS, start_date)
 print(rides_df.shape)
 rides_df.head()
 ```
@@ -68,7 +71,7 @@ labels_df.head()
 
 ### Improved Data Bound Within Range: 2023-04-01 to 2023-04-30
 
-For Testing Purpose
+For Model Evaluation
 
 ```{python}
 labels_df['date'] = pd.to_datetime(labels_df['date'])
@@ -89,11 +92,25 @@ filtered_rides_df = filtered_rides_df.reset_index(drop=True)
 ```
 
 ```{python}
-filtered_rides_df['pred_count'] = filtered_rides_df['count']
+# Step 1: Generate random noise
+noise = np.random.randint(0, 10, size=len(filtered_rides_df))
+
+filtered_rides_df['pred_count'] = filtered_rides_df['count'] + noise
 ```
 
 ```{python tags=c()}
-filtered_rides_df.head(10)
+print(filtered_rides_df.shape)
+filtered_rides_df.head()
+```
+
+```{python tags=c()}
+# To handle the issue with MAPE and zero values in the count column, we replace zeros
+# with the minimum non-zero count value. This prevents division by zero and ensures
+# accurate evaluation of the metric.
+min_non_zero_value = np.min(
+    filtered_rides_df['count'][filtered_rides_df['count'] != 0])
+filtered_rides_df.loc[filtered_rides_df['count']
+                      == 0, 'count'] = min_non_zero_value
 ```
 
 # Report by MAPE Metric
@@ -104,8 +121,6 @@ filtered_rides_df.head(10)
 ```{python}
 # Define the MAPE calculation function
 def calculate_mape(actual, predicted):
-    if np.all(actual == 0):
-        return 0.0
     return (abs((actual - predicted) / actual)).mean() * 100
 
 
@@ -118,8 +133,8 @@ print("MAPE: {:.2f}%".format(mape))
 ### Calculate MAPE per LocationID
 
 ```{python}
-def calculate_mape_locationID(df, PULocationID):
-    selected_df = df[df['PULocationID'] == PULocationID]
+def calculate_mape_locationID(df, Location_Col, LocationID):
+    selected_df = df[df[Location_Col] == LocationID]
     actual = selected_df['count']
     predicted = selected_df['pred_count']
     mape = calculate_mape(actual, predicted)
@@ -127,9 +142,11 @@ def calculate_mape_locationID(df, PULocationID):
 ```
 
 ```{python}
-locationID_mape = 263
-calculate_mape_locationID(filtered_rides_df, locationID_mape)
-print("MAPE for LocationID {}: {:.2f}%".format(locationID_mape, mape))
+locationID_mape = 2
+mape_LocationID_output = calculate_mape_locationID(
+    filtered_rides_df, 'PULocationID', locationID_mape)
+print("MAPE for LocationID {}: {:.2f}%".format(
+    locationID_mape, mape_LocationID_output))
 ```
 
 ### Calculate Average MAPE per all LocationIDs
@@ -137,50 +154,53 @@ print("MAPE for LocationID {}: {:.2f}%".format(locationID_mape, mape))
 ```{python}
 PULocationIDs = filtered_rides_df['PULocationID'].unique()
 PULocationIDs.sort()
+mape_all = []
 for locationID in PULocationIDs:
-    mape_all = []
-    mape_all.append(calculate_mape_locationID(filtered_rides_df, locationID))
-    AvgMAPE = sum(mape_all)/len(PULocationIDs)
-
+    mape_location = calculate_mape_locationID(
+        filtered_rides_df, 'PULocationID', locationID)
+    mape_all.append({'LocationID': locationID, 'MAPE': mape_location})
+PULocationIDs_MAPE = pd.DataFrame(mape_all)
+AvgMAPE = sum(PULocationIDs_MAPE['MAPE'].values)/len(PULocationIDs)
 print("Average MAPE per LocationIDs: {:.2f}%".format(mape))
 ```
 
 ## Visualization
+
+
+### MAPE Metric on Map based on selected date
 
 Zones (Borough): **EWR, Queens, Bronx, Manhattan, Staten Island, Brooklyn**
 
 Date Range: **2023-04-01_2023-04-30**
 
 ```{python}
-# This Function shows demand on map based on selected date on month
+# This function shows MAPE metric on map based on selected date on month
 # Becuase of to many locationIDs, we limited our visualization to each zone(Borough)
 def visualize_mape_zone_date(zone, date, df):
-    shape = gpd.read_file(
-        '/workspace/rahnemacollege/Project/Git/demand-prediction/map_data/taxi_zones/taxi_zones.shp')
+    shape = gpd.read_file(SHAPE_FILE_PATH)
     counts_PU = df.rename(columns={'PULocationID': 'LocationID'})
     counts_PU = counts_PU[counts_PU['date'] == date]
     merged_gdf = shape.merge(counts_PU, on='LocationID', how='left')
     merged_gdf = merged_gdf.dropna()
     merged_gdf['MAPE'] = np.where(merged_gdf['count'] != 0, (abs(
-        (merged_gdf['count'] - merged_gdf['pred_count']) / merged_gdf['count'])) * 100, 0)
+        (merged_gdf['count'] - merged_gdf['pred_count']) / merged_gdf['count'])) * 100, 1)
     merged_gdf_selected = merged_gdf[merged_gdf['borough'] == zone]
 
     # Create a single plot
     fig, ax = plt.subplots(figsize=(10, 7.5))
 
-    # Plot the map with 'count' column
-    # Reverse the colormap by setting vmin and vmax to reverse the values
-    merged_gdf_selected.plot(column='MAPE', cmap='Oranges_r', legend=True, ax=ax,
-                             vmin=merged_gdf_selected['MAPE'].max(), vmax=merged_gdf_selected['MAPE'].min())
-    ax.set_title('Prediction based on MAPE')
+    # Plot the map with 'MAPE' column
+    merged_gdf_selected.plot(
+        column='MAPE', cmap='Oranges_r', legend=True, ax=ax)
+    ax.set_title('Prediction based on MAPE for selected date: {}'.format(date))
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
 
     # Annotate 'MAPE' values on the map
     for idx, row in merged_gdf_selected.iterrows():
-        location_id = row['MAPE']
+        loc_mape = "{}\n{:.1f}%".format(row['LocationID'], row['MAPE'])
         x, y = row.geometry.centroid.x, row.geometry.centroid.y
-        ax.text(x, y, str(location_id), fontsize=8,
+        ax.text(x, y, str(loc_mape), fontsize=8,
                 ha='center', va='center', color='black')
 
     plt.show()
