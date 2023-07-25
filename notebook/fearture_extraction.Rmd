@@ -79,7 +79,7 @@ rides_df.head()
 
 ```{python}
 def adding_calender_feature(rides_df: pd.DataFrame):   
-    rides_df['count']=rides_df['count'] + 1000
+    #rides_df['count']=rides_df['count'] + 1000
     rides_df['date']=rides_df['date'].astype('datetime64')
     rides_df['PU_day_of_month'] = rides_df['date'].dt.day.astype(np.uint8)
     rides_df['PU_day_of_week'] = rides_df['date'].dt.weekday.astype(np.uint8)        
@@ -103,4 +103,8 @@ rides_df[(rides_df['PULocationID'] == 79)].tail(8)
 
 ```{python id="sk32WEWjpVdB"}
 rides_df.to_parquet(OUTPUT_PATH)
+```
+
+```{python}
+
 ```
