@@ -151,7 +151,7 @@ print("MAPE for LocationID {}: {:.2f}%".format(
 
 ### Calculate Average MAPE per all LocationIDs
 
-```{python}
+```{python tags=c()}
 PULocationIDs = filtered_rides_df['PULocationID'].unique()
 PULocationIDs.sort()
 mape_all = []
@@ -159,13 +159,20 @@ for locationID in PULocationIDs:
     mape_location = calculate_mape_locationID(
         filtered_rides_df, 'PULocationID', locationID)
     mape_all.append({'LocationID': locationID, 'MAPE': mape_location})
+
+
 PULocationIDs_MAPE = pd.DataFrame(mape_all)
+print(PULocationIDs_MAPE.shape)
+print(PULocationIDs_MAPE.head())
+
+
 AvgMAPE = sum(PULocationIDs_MAPE['MAPE'].values)/len(PULocationIDs)
 print("Average MAPE per LocationIDs: {:.2f}%".format(mape))
 ```
 
+<!-- #region tags=[] -->
 ## Visualization
-
+<!-- #endregion -->
 
 ### MAPE Metric on Map based on selected date
 
@@ -208,4 +215,47 @@ def visualize_mape_zone_date(zone, date, df):
 
 ```{python tags=c()}
 visualize_mape_zone_date('Queens', '2023-04-01', filtered_rides_df)
+```
+
+<!-- #region tags=[] -->
+### MAPE Metric on Map based on whole test data
+
+Zones (Borough): **EWR, Queens, Bronx, Manhattan, Staten Island, Brooklyn**
+
+<!-- #endregion -->
+
+```{python tags=c()}
+# This function shows MAPE metric on map based on whole test data
+# Becuase of to many locationIDs, we limited our visualization to each zone(Borough)
+def visualize_mape_zone(zone, df):
+    shape = gpd.read_file(SHAPE_FILE_PATH)
+    counts_PU = df.rename(
+        columns={'PULocationID': 'LocationID'})
+    merged_gdf = shape.merge(counts_PU, on='LocationID', how='left')
+    merged_gdf = merged_gdf.dropna()
+    merged_gdf_selected = merged_gdf[merged_gdf['borough'] == zone]
+
+    # Create a single plot
+    fig, ax = plt.subplots(figsize=(10, 7.5))
+
+    # Plot the map with 'count' column
+    # Reverse the colormap by setting vmin and vmax to reverse the values
+    merged_gdf_selected.plot(
+        column='MAPE', cmap='Oranges_r', legend=True, ax=ax)
+    ax.set_title('Prediction based on MAPE for {}'.format(zone))
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    # Annotate 'MAPE' values on the map
+    for idx, row in merged_gdf_selected.iterrows():
+        location_id = "{}\n{:.1f}%".format(row['LocationID'], row['MAPE'])
+        x, y = row.geometry.centroid.x, row.geometry.centroid.y
+        ax.text(x, y, str(location_id), fontsize=8,
+                ha='center', va='center', color='black')
+
+    plt.show()
+```
+
+```{python tags=c()}
+visualize_mape_zone('Queens', PULocationIDs_MAPE)
 ```
