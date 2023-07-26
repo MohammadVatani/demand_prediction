@@ -78,7 +78,7 @@ rides_df.head()
 ### adding calender features
 
 ```{python}
-def adding_calender_feature(rides_df: pd.DataFrame):   
+def adding_feature(rides_df: pd.DataFrame):   
     #rides_df['count']=rides_df['count'] + 1000
     rides_df['date']=rides_df['date'].astype('datetime64')
     rides_df['PU_day_of_month'] = rides_df['date'].dt.day.astype(np.uint8)
@@ -89,7 +89,7 @@ def adding_calender_feature(rides_df: pd.DataFrame):
     
     return rides_df
 
-rides_df=adding_calender_feature(rides_df)
+rides_df=adding_feature(rides_df)
 print(rides_df.shape)
 rides_df.head()
 ```
