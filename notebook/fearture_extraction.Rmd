@@ -86,13 +86,12 @@ def adding_calender_feature(rides_df: pd.DataFrame):
     rides_df = rides_df.sort_values(['date'])    
     rides_df['last_day_demand'] = rides_df.groupby(['PULocationID'])['count'].shift(1)    
     rides_df['last_week_demand'] = rides_df.groupby(['PULocationID'])['count'].shift(7)
-    rides_df['last_day_demand'].fillna(0,inplace = True)    
-    rides_df['last_week_demand'].fillna(0,inplace = True)    
+    
     return rides_df
 
 rides_df=adding_calender_feature(rides_df)
 print(rides_df.shape)
-rides_df.tail()
+rides_df.head()
 ```
 
 ### checking one week of data as a sample
