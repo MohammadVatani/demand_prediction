@@ -38,7 +38,7 @@ from xgboost import XGBRegressor
 warnings.simplefilter('ignore')
 ```
 
-```{python id="jaYURh4fpcbb"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="jaYURh4fpcbb", outputId="d8c01e63-56e8-41bc-97e6-9b2a2f5a7665"}
 ##################################################################
 # %cd /content/drive/MyDrive/RC/data/
 ```
@@ -51,6 +51,7 @@ warnings.simplefilter('ignore')
 DATA_FILE_PATHS = '/content/drive/MyDrive/RC/data/'
 START_DATE = '2023-01-01'
 TEST_DATE = '2023,4,1'
+LAST_DATE = '2023,5,1'
 FEATURE_LIST = [
     'PULocationID',
     'PU_day_of_month',
@@ -68,7 +69,7 @@ XGB_OUTPUT_PATH = '/content/drive/MyDrive/RC/output/XGB_result.parquet'
 # Load Data
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 370}, id="yjVGfzNR-Eig", outputId="6db16244-1ab1-4307-ba12-0ffe7f46adb8"}
+```{python colab={'base_uri': 'https://localhost:8080/', 'height': 370}, id="yjVGfzNR-Eig", outputId="7342458b-3495-4250-9d62-bb0607b588f6"}
 def load_data(file_paths, start_date = None):
     df = pd.read_parquet(file_paths)
     df['date'] = df['tpep_pickup_datetime'].dt.date.astype(str)
@@ -90,7 +91,7 @@ rides_df.head()
 # aggregate data and labeling
 <!-- #endregion -->
 
-```{python id="xJH5F6sXAlId", colab={'base_uri': 'https://localhost:8080/', 'height': 221}, outputId="8aed543a-ed95-4e90-aaba-1f3cec6b3b49"}
+```{python id="xJH5F6sXAlId", colab={'base_uri': 'https://localhost:8080/', 'height': 221}, outputId="429d2a8f-3dbc-4928-ffab-34ab69581d49"}
 def labeling(rides_df : pd.DataFrame):
     aggregated_df = rides_df.groupby(
         ['date', 'PULocationID']).size().reset_index(name='count')
@@ -128,7 +129,7 @@ rides_df.head()
 ## adding calender features
 <!-- #endregion -->
 
-```{python id="EMPPqhClCrur", colab={'base_uri': 'https://localhost:8080/', 'height': 221}, outputId="8aa9130d-04ca-479b-fe9f-375eea6955ce"}
+```{python id="EMPPqhClCrur", colab={'base_uri': 'https://localhost:8080/', 'height': 221}, outputId="8e2955e4-ed46-4022-fba7-8c820ee70f0d"}
 def adding_feature(rides_df : pd.DataFrame):
     rides_df['date'] = rides_df['date'].astype('datetime64')
     rides_df['PU_day_of_month'] = rides_df['date'].dt.day.astype(np.uint8)
@@ -140,7 +141,6 @@ def adding_feature(rides_df : pd.DataFrame):
 
 rides_df['count'] = rides_df['count'] + 1
 rides_df = adding_feature(rides_df)
-rides_df = rides_df.dropna()
 
 print(rides_df.shape)
 rides_df.head()
@@ -150,15 +150,33 @@ rides_df.head()
 ## checking one week of data as a sample
 <!-- #endregion -->
 
-```{python id="dSVH2ROjH_Hs", colab={'base_uri': 'https://localhost:8080/', 'height': 297}, outputId="72ed4999-be6f-4357-d250-a176ab03b63c"}
+```{python id="dSVH2ROjH_Hs", colab={'base_uri': 'https://localhost:8080/', 'height': 297}, outputId="fe254df8-7825-4430-9a46-50fba5d9f999"}
 rides_df[(rides_df['PULocationID'] == 79)].tail(8)
+```
+
+<!-- #region id="tvzGyWPQEM2-" -->
+## Dropping some samples
+<!-- #endregion -->
+
+```{python colab={'base_uri': 'https://localhost:8080/', 'height': 221}, id="VKDnrg9t6u84", outputId="1be04b7c-4beb-4682-c1b9-82dd41db53b3"}
+rides_df = rides_df.dropna()
+date = LAST_DATE.split(',')
+end_date_time = datetime.datetime(
+    int(date[0]),
+    int(date[1]),
+    int(date[2])
+)
+rides_df = rides_df[rides_df['date'] < end_date_time]
+
+print(rides_df.shape)
+rides_df.head()
 ```
 
 <!-- #region id="7wZpKFTMS7Qb" -->
 ## Train and Test split
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 269}, id="R-OC1_1yS-mF", outputId="a6257e4e-4742-4c9d-b641-433c1bde183b"}
+```{python colab={'base_uri': 'https://localhost:8080/', 'height': 269}, id="R-OC1_1yS-mF", outputId="5c79c970-8719-4d0d-c154-65ecbf4bdbc7"}
 def train_and_test_split(data, split_date):
 
   date = split_date.split(',')
@@ -304,7 +322,7 @@ lr_model = model_training(
 ### Validation prediction
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="-4qoRLP4VqFr", outputId="a69953c7-9023-46dc-94df-91315a42ae78"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="-4qoRLP4VqFr", outputId="d8f41d2a-9566-44cf-957a-c6975f876178"}
 lr_validation_pred = replace_negatives(
     np.round_(
         lr_model.predict(
@@ -322,7 +340,7 @@ error_calculator(
 ### Test prediction
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="tt6TaA5SVf65", outputId="a9b4915a-244d-48cb-fcb5-aae2815704f0"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="tt6TaA5SVf65", outputId="8a9741c1-4abd-473c-a721-97c625efa6de"}
 lr_test_pred = replace_negatives(
     np.round_(
         lr_model.predict(
@@ -340,7 +358,7 @@ error_calculator(
 ### Result Data
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="JvIW0Jme4len", outputId="fa783f1f-67ad-4ed9-c95b-2bf4b09070bf"}
+```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="JvIW0Jme4len", outputId="a0f3234c-ead6-4072-80e9-fd81d38f267f"}
 lr_result_df = test_df.copy()
 lr_result_df['real demand'] = test_label_df
 lr_result_df['predicted demand'] = lr_test_pred
@@ -361,7 +379,7 @@ lr_result_df.to_parquet(LR_OUTPUT_PATH)
 ### Hyperparameter tuning
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="EtPJikUtoV5t", outputId="ed3e700b-c103-43c9-b99b-b84bd87846a7"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="EtPJikUtoV5t", outputId="23199f57-5128-4836-c235-533e317c4706"}
 def hyper_parameter_tuning(n_estimators, learning_rate, max_depth, scoring_method):
   parameters = {
       'n_estimators' : n_estimators,
@@ -418,7 +436,7 @@ XGB_model = model_training(
 ### Validation prediction
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="Cs6kMlFLklAP", outputId="b10d1cc7-ade8-4c05-d640-103f5a5b489c"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="Cs6kMlFLklAP", outputId="607c7e12-2301-46f7-8c32-f2f8b3b6afcf"}
 XGB_validation_pred = replace_negatives(
     np.round_(
         XGB_model.predict(
@@ -436,7 +454,7 @@ error_calculator(
 ### Test prediction
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="FTeKWnmNkoWy", outputId="3ddbf3e4-2493-43ba-a593-dbc7f51f68d3"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="FTeKWnmNkoWy", outputId="35bf8995-bc54-44f8-da85-f127fe43eaa0"}
 XGB_test_pred = replace_negatives(
     np.round_(
         XGB_model.predict(
@@ -454,7 +472,7 @@ error_calculator(
 ### Result Data
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="gmF1vuTn0l-5", outputId="27bcca38-637a-4e8d-a37f-7716e63c1634"}
+```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="gmF1vuTn0l-5", outputId="f17bdc63-1d56-49d5-d862-c7f9d9cbd6a5"}
 XGB_result_df = test_df.copy()
 XGB_result_df['real demand'] = test_label_df
 XGB_result_df['predicted demand'] = XGB_test_pred
