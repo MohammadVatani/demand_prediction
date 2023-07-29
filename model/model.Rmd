@@ -38,6 +38,11 @@ from xgboost import XGBRegressor
 warnings.simplefilter('ignore')
 ```
 
+```{python id="jaYURh4fpcbb"}
+##################################################################
+# %cd /content/drive/MyDrive/RC/data/
+```
+
 <!-- #region id="qwqNfi6NQV_v" -->
 # Config
 <!-- #endregion -->
@@ -241,10 +246,12 @@ def symmetric_mean_absolute_percentage_error(actual, predicted) -> float:
 def error_calculator(real_demand, predicted_demand):
   print(
       'SMAPE: ',
-      symmetric_mean_absolute_percentage_error(
-          real_demand,
-          predicted_demand
-      ) * 100, '%'
+      round(
+          symmetric_mean_absolute_percentage_error(
+              real_demand,
+              predicted_demand
+          ) * 100 , 2
+      ), '%'
   )
   print(
       'MAPE:  ',
@@ -297,7 +304,7 @@ lr_model = model_training(
 ### Validation prediction
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="-4qoRLP4VqFr", outputId="269c6c52-884d-4ba0-91f7-3c9ac904a334"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="-4qoRLP4VqFr", outputId="a69953c7-9023-46dc-94df-91315a42ae78"}
 lr_validation_pred = replace_negatives(
     np.round_(
         lr_model.predict(
@@ -315,7 +322,7 @@ error_calculator(
 ### Test prediction
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="tt6TaA5SVf65", outputId="cbb3e100-6723-4d70-e13e-9341aac2a4ad"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="tt6TaA5SVf65", outputId="a9b4915a-244d-48cb-fcb5-aae2815704f0"}
 lr_test_pred = replace_negatives(
     np.round_(
         lr_model.predict(
@@ -333,7 +340,7 @@ error_calculator(
 ### Result Data
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="JvIW0Jme4len", outputId="c8df0860-b6e5-45aa-dca2-452219247b07"}
+```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="JvIW0Jme4len", outputId="fa783f1f-67ad-4ed9-c95b-2bf4b09070bf"}
 lr_result_df = test_df.copy()
 lr_result_df['real demand'] = test_label_df
 lr_result_df['predicted demand'] = lr_test_pred
@@ -411,10 +418,10 @@ XGB_model = model_training(
 ### Validation prediction
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="Cs6kMlFLklAP", outputId="edb889f4-cb73-4c67-b2cf-a08f4aa70eca"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="Cs6kMlFLklAP", outputId="b10d1cc7-ade8-4c05-d640-103f5a5b489c"}
 XGB_validation_pred = replace_negatives(
     np.round_(
-        lr_model.predict(
+        XGB_model.predict(
             validation_df
         )
     )
@@ -429,10 +436,10 @@ error_calculator(
 ### Test prediction
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="FTeKWnmNkoWy", outputId="b89da494-1e7f-49f9-e044-136aa042e993"}
+```{python colab={'base_uri': 'https://localhost:8080/'}, id="FTeKWnmNkoWy", outputId="3ddbf3e4-2493-43ba-a593-dbc7f51f68d3"}
 XGB_test_pred = replace_negatives(
     np.round_(
-        lr_model.predict(
+        XGB_model.predict(
             test_df
         )
     )
@@ -447,7 +454,7 @@ error_calculator(
 ### Result Data
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="gmF1vuTn0l-5", outputId="05f7513d-0300-4866-a333-dc72b36b835e"}
+```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="gmF1vuTn0l-5", outputId="27bcca38-637a-4e8d-a37f-7716e63c1634"}
 XGB_result_df = test_df.copy()
 XGB_result_df['real demand'] = test_label_df
 XGB_result_df['predicted demand'] = XGB_test_pred
