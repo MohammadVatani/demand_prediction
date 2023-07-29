@@ -38,11 +38,6 @@ from xgboost import XGBRegressor
 warnings.simplefilter('ignore')
 ```
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="jaYURh4fpcbb", outputId="d8c01e63-56e8-41bc-97e6-9b2a2f5a7665"}
-##################################################################
-# %cd /content/drive/MyDrive/RC/data/
-```
-
 <!-- #region id="qwqNfi6NQV_v" -->
 # Config
 <!-- #endregion -->
