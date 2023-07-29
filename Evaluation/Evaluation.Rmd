@@ -12,7 +12,9 @@ jupyter:
     name: python3
 ---
 
+<!-- #region tags=[] -->
 # Imports
+<!-- #endregion -->
 
 ```{python tags=c()}
 import geopandas as gpd
@@ -20,7 +22,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
+import seaborn as sns
 from itertools import product
+```
+
+```{python}
+# %matplotlib inline
 ```
 
 # Config
@@ -28,89 +35,60 @@ from itertools import product
 ```{python}
 DATA_FILE_PATHS = '/workspace/rahnemacollege/Project/Git/demand-prediction/data'
 SHAPE_FILE_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/map_data/taxi_zones/taxi_zones.shp'
-start_date = '2023-03-31'
-end_date = '2023-05-01'
+LR_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/lr_result.parquet'
+XGB_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/XGB_result.parquet'
+
+start_date_test = '2023-04-01'
+end_date_test = '2023-05-01'
 ```
 
 # Load Data files
 
-```{python}
-def load_data(file_paths, start_date=None):
-    df = pd.read_parquet(file_paths)
-    df['date'] = df['tpep_pickup_datetime'].dt.date.astype(str)
-
-    if start_date:
-        df = df[df['date'] > start_date].reset_index(drop=True)
-
+```{python tags=c()}
+def load_data(file_paths):
+    df = pd.read_parquet(file_paths).reset_index()
+    df = df.rename(columns={'real demand': 'count',
+                   'predicted demand': 'pred_count'})
     return df
-
-
-rides_df = load_data(DATA_FILE_PATHS, start_date)
-print(rides_df.shape)
-rides_df.head()
 ```
 
 ```{python}
-def labeling(rides_df: pd.DataFrame):
-    aggregated_df = rides_df.groupby(
-        ['date', 'PULocationID']).size().reset_index(name='count')
-    unique_dates = rides_df['date'].unique()
-    unique_pu_location_ids = rides_df['PULocationID'].unique()
-    all_combinations = list(product(unique_dates, unique_pu_location_ids))
-    combinations_df = pd.DataFrame(all_combinations, columns=[
-                                   'date', 'PULocationID'])
-    label_df = aggregated_df.merge(combinations_df, how='right', on=[
-                                   'date', 'PULocationID']).fillna(0)
-    return label_df
+lr_rides_df = load_data(LR_PATH)
+print(lr_rides_df.shape)
+lr_rides_df.head()
+```
 
-
-labels_df = labeling(rides_df)
-print(labels_df.shape)
-labels_df.head()
+```{python}
+xgb_rides_df = load_data(XGB_PATH)
+print(xgb_rides_df.shape)
+xgb_rides_df.head()
 ```
 
 ### Improved Data Bound Within Range: 2023-04-01 to 2023-04-30
 
 For Model Evaluation
 
-```{python}
-labels_df['date'] = pd.to_datetime(labels_df['date'])
-```
-
-```{python}
-filtered_rides_df = labels_df[(labels_df['date'] >= start_date) & (
-    labels_df['date'] < end_date)]
-```
-
-```{python}
-# Sort the DataFrame based on the 'tpep_pickup_datetime' column in ascending order
-filtered_rides_df = filtered_rides_df.sort_values(by='date')
-```
-
-```{python}
-filtered_rides_df = filtered_rides_df.reset_index(drop=True)
-```
-
-```{python}
-# Step 1: Generate random noise
-noise = np.random.randint(0, 10, size=len(filtered_rides_df))
-
-filtered_rides_df['pred_count'] = filtered_rides_df['count'] + noise
+```{python tags=c()}
+def df_time_bound(df):
+    df['date'] = pd.to_datetime(df['date'])
+    filtered_rides_df = df[(df['date'] >= start_date_test) & (
+        df['date'] < end_date_test)]
+    # Sort the DataFrame based on the 'tpep_pickup_datetime' column in ascending order
+    filtered_rides_df = filtered_rides_df.sort_values(by='date')
+    filtered_rides_df = filtered_rides_df.reset_index(drop=True)
+    return filtered_rides_df
 ```
 
 ```{python tags=c()}
-print(filtered_rides_df.shape)
-filtered_rides_df.head()
+lr_rides_df = df_time_bound(lr_rides_df)
+print(lr_rides_df.shape)
+lr_rides_df.head()
 ```
 
 ```{python tags=c()}
-# To handle the issue with MAPE and zero values in the count column, we replace zeros
-# with the minimum non-zero count value. This prevents division by zero and ensures
-# accurate evaluation of the metric.
-min_non_zero_value = np.min(
-    filtered_rides_df['count'][filtered_rides_df['count'] != 0])
-filtered_rides_df.loc[filtered_rides_df['count']
-                      == 0, 'count'] = min_non_zero_value
+xgb_rides_df = df_time_bound(xgb_rides_df)
+print(xgb_rides_df.shape)
+xgb_rides_df.head()
 ```
 
 # Report by MAPE Metric
@@ -126,7 +104,7 @@ def calculate_mape(actual, predicted):
 
 # Calculate MAPE
 mape = calculate_mape(
-    filtered_rides_df['count'], filtered_rides_df['pred_count'])
+    xgb_rides_df['count'], xgb_rides_df['pred_count'])
 print("MAPE: {:.2f}%".format(mape))
 ```
 
@@ -144,7 +122,7 @@ def calculate_mape_locationID(df, Location_Col, LocationID):
 ```{python}
 locationID_mape = 2
 mape_LocationID_output = calculate_mape_locationID(
-    filtered_rides_df, 'PULocationID', locationID_mape)
+    xgb_rides_df, 'PULocationID', locationID_mape)
 print("MAPE for LocationID {}: {:.2f}%".format(
     locationID_mape, mape_LocationID_output))
 ```
@@ -152,12 +130,12 @@ print("MAPE for LocationID {}: {:.2f}%".format(
 ### Calculate Average MAPE per all LocationIDs
 
 ```{python tags=c()}
-PULocationIDs = filtered_rides_df['PULocationID'].unique()
+PULocationIDs = xgb_rides_df['PULocationID'].unique()
 PULocationIDs.sort()
 mape_all = []
 for locationID in PULocationIDs:
     mape_location = calculate_mape_locationID(
-        filtered_rides_df, 'PULocationID', locationID)
+        xgb_rides_df, 'PULocationID', locationID)
     mape_all.append({'LocationID': locationID, 'MAPE': mape_location})
 
 
@@ -180,9 +158,15 @@ Zones (Borough): **EWR, Queens, Bronx, Manhattan, Staten Island, Brooklyn**
 
 Date Range: **2023-04-01_2023-04-30**
 
+Lower is better based on MAPE Metric
+
 ```{python}
-# This function shows MAPE metric on map based on selected date on month
-# Becuase of to many locationIDs, we limited our visualization to each zone(Borough)
+zones = ['EWR', 'Queens', 'Bronx', 'Manhattan', 'Staten Island', 'Brooklyn']
+```
+
+```{python}
+# This function shows MAPE metric on map based on selected date of month
+
 def visualize_mape_zone_date(zone, date, df):
     shape = gpd.read_file(SHAPE_FILE_PATH)
     counts_PU = df.rename(columns={'PULocationID': 'LocationID'})
@@ -199,13 +183,14 @@ def visualize_mape_zone_date(zone, date, df):
     # Plot the map with 'MAPE' column
     merged_gdf_selected.plot(
         column='MAPE', cmap='Oranges_r', legend=True, ax=ax)
-    ax.set_title('Prediction based on MAPE for selected date: {}'.format(date))
+    ax.set_title(
+        'Prediction based on MAPE for {} and selected date: {}'.format(zone, date))
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
 
     # Annotate 'MAPE' values on the map
     for idx, row in merged_gdf_selected.iterrows():
-        loc_mape = "{}\n{:.1f}%".format(row['LocationID'], row['MAPE'])
+        loc_mape = "{}".format(row['LocationID'])
         x, y = row.geometry.centroid.x, row.geometry.centroid.y
         ax.text(x, y, str(loc_mape), fontsize=8,
                 ha='center', va='center', color='black')
@@ -214,7 +199,8 @@ def visualize_mape_zone_date(zone, date, df):
 ```
 
 ```{python tags=c()}
-visualize_mape_zone_date('Queens', '2023-04-01', filtered_rides_df)
+# for i in zones:
+#    visualize_mape_zone_date(i, '2023-04-01', xgb_rides_df)
 ```
 
 <!-- #region tags=[] -->
@@ -222,11 +208,11 @@ visualize_mape_zone_date('Queens', '2023-04-01', filtered_rides_df)
 
 Zones (Borough): **EWR, Queens, Bronx, Manhattan, Staten Island, Brooklyn**
 
+Lower is better
 <!-- #endregion -->
 
 ```{python tags=c()}
 # This function shows MAPE metric on map based on whole test data
-# Becuase of to many locationIDs, we limited our visualization to each zone(Borough)
 def visualize_mape_zone(zone, df):
     shape = gpd.read_file(SHAPE_FILE_PATH)
     counts_PU = df.rename(
@@ -248,7 +234,7 @@ def visualize_mape_zone(zone, df):
 
     # Annotate 'MAPE' values on the map
     for idx, row in merged_gdf_selected.iterrows():
-        location_id = "{}\n{:.1f}%".format(row['LocationID'], row['MAPE'])
+        location_id = "{}".format(row['LocationID'])
         x, y = row.geometry.centroid.x, row.geometry.centroid.y
         ax.text(x, y, str(location_id), fontsize=8,
                 ha='center', va='center', color='black')
@@ -257,5 +243,136 @@ def visualize_mape_zone(zone, df):
 ```
 
 ```{python tags=c()}
-visualize_mape_zone('Queens', PULocationIDs_MAPE)
+for i in zones:
+    visualize_mape_zone(i, PULocationIDs_MAPE)
+```
+
+### Predicted demand on whole test data
+
+Zones (Borough): **EWR, Queens, Bronx, Manhattan, Staten Island, Brooklyn**
+
+```{python}
+def visualize_demand_zone(zone, df, col_show):
+    shape = gpd.read_file(SHAPE_FILE_PATH)
+    counts_PU = df.rename(columns={'PULocationID': 'LocationID'})
+    counts_PU = counts_PU.groupby('LocationID')[['last_day_demand', 'count', 'pred_count']].sum(
+    ).sort_values(col_show, ascending=False).reset_index()
+    merged_gdf = shape.merge(counts_PU, on='LocationID', how='left')
+    merged_gdf = merged_gdf.dropna()
+    merged_gdf_selected = merged_gdf[merged_gdf['borough'] == zone]
+
+    # Create a single plot
+    fig, ax = plt.subplots(figsize=(10, 7.5))
+
+    # Plot the map with 'MAPE' column
+    merged_gdf_selected.plot(
+        column='count', cmap='Oranges', legend=True, ax=ax)
+    ax.set_title('{} of demands Zone: {}'.format(col_show, zone))
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    # Annotate 'MAPE' values on the map
+    for idx, row in merged_gdf_selected.iterrows():
+        loc_mape = "{}".format(row['LocationID'])
+        x, y = row.geometry.centroid.x, row.geometry.centroid.y
+        ax.text(x, y, str(loc_mape), fontsize=8,
+                ha='center', va='center', color='black')
+
+    plt.show()
+```
+
+```{python}
+for i in zones:
+    visualize_demand_zone(i, xgb_rides_df, 'count')
+```
+
+```{python}
+for i in zones:
+    visualize_demand_zone(i, xgb_rides_df, 'pred_count')
+```
+
+<!-- #region tags=[] -->
+## Cumulative Histogram
+<!-- #endregion -->
+
+### Compare Models prediction vs. Last day count base on MAPE metric
+
+```{python}
+def compare_models(model1, model2, lower_bound=0, upper_bound=262):
+    xgb = model1.groupby('PULocationID')[['last_day_demand', 'count', 'pred_count']].sum(
+    ).sort_values('count', ascending=False).reset_index()
+    xgb['MAPE'] = ((abs(xgb['count'] - xgb['pred_count']) / xgb['count'])*100)
+    xgb['MAPE_lastday'] = (
+        (abs(xgb['count'] - xgb['last_day_demand']) / xgb['count'])*100)
+
+    lr = model2.groupby('PULocationID')[['last_day_demand', 'count', 'pred_count']].sum(
+    ).sort_values('count', ascending=False).reset_index()
+    lr['MAPE'] = ((abs(lr['count'] - lr['pred_count']) / lr['count'])*100)
+    lr['MAPE_lastday'] = (
+        (abs(lr['count'] - lr['last_day_demand']) / lr['count'])*100)
+
+    selected_df = xgb.iloc[lower_bound:upper_bound]
+    selected_df1 = lr.iloc[lower_bound:upper_bound]
+
+    plt.figure(figsize=(20, 5))
+    plt.title('Count demand of LocationIDs Compare Models vs. Last day count')
+
+    plt.plot(selected_df['MAPE'], label="MAPE Of XGB")
+    plt.plot(selected_df1['MAPE'], label="MAPE Of Linear Regression")
+    plt.plot(selected_df['MAPE_lastday'], label="MAPE Of LastDay")
+
+    plt.xticks(selected_df.index, selected_df['PULocationID'], rotation=90)
+
+    plt.legend()
+    plt.xlabel('LocationID')
+    plt.ylabel('Percetage MAPE%')
+
+    plt.show()
+```
+
+```{python}
+for i in range(0, 250, 50):
+    if i == 0:
+        compare_models(xgb_rides_df, lr_rides_df, i, i+50)
+    else:
+        compare_models(xgb_rides_df, lr_rides_df, i-15, i+35)
+```
+
+### Compare Models predicion vs. Last day count based on actual count
+
+```{python}
+def compare_model_scatter(model1, model2, lower_bound=0, upper_bound=262):
+    xgb = model1.groupby('PULocationID')[['last_day_demand', 'count', 'pred_count']].sum(
+    ).sort_values('count', ascending=False).reset_index()
+
+    lr = model2.groupby('PULocationID')[['last_day_demand', 'count', 'pred_count']].sum(
+    ).sort_values('count', ascending=False).reset_index()
+
+    selected_df = xgb.iloc[lower_bound:upper_bound]
+    selected_df1 = lr.iloc[lower_bound:upper_bound]
+
+    plt.figure(figsize=(15, 5))
+    plt.scatter(selected_df.index,
+                selected_df['count'], label="Actual", color='red', s=15)
+    plt.plot(selected_df.index, selected_df['pred_count'], label="XGB")
+    plt.plot(selected_df.index, selected_df1['pred_count'], label="LR")
+    plt.plot(selected_df.index,
+             selected_df1['last_day_demand'], label="Last day")
+
+    plt.xticks(selected_df.index, selected_df['PULocationID'], rotation=90)
+
+    plt.legend()
+    plt.xlabel('Index')
+    plt.ylabel('Counts')
+    plt.title('Demand count Compare XGBoost Model vs Last day')
+
+    plt.show()
+```
+
+```{python}
+for i in range(0, 250, 50):
+    if i == 0:
+        compare_model_scatter(xgb_rides_df, lr_rides_df, i, i+50)
+    else:
+        compare_model_scatter(xgb_rides_df, lr_rides_df, i-15, i+35)
 ```

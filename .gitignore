@@ -166,3 +166,6 @@ map_data
 # Project
 /venv
 /data
+.parquet
+.idea/
+.yaml
