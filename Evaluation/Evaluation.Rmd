@@ -351,8 +351,7 @@ predictions_result = predictions_result.reset_index(drop=True)
 ```
 
 ```{python}
-print(predictions_result.shape)
-predictions_result.tail()
+display(predictions_result)
 ```
 
 #### Save Metrics output to File
