@@ -26,7 +26,6 @@ from itertools import product
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
-from sklearn.metrics import r2_score
 ```
 
 ```{python}
@@ -171,10 +170,8 @@ for key in predictions_dict:
             selected_df_actual['count'], selected_df_model['pred_count'])
         metric_rmse = mean_squared_error(
             selected_df_actual['count'], selected_df_model['pred_count'], squared=False)
-        metric_r2sc = r2_score(
-            selected_df_actual['count'], selected_df_model['pred_count'])
         metrics_all.append({'PULocationID': locationID, 'Model': key, 'MAPE': metric_mape,
-                           'MAE': metric_mae, 'MSE': metric_mse, 'RMSE': metric_rmse, 'R2_score': metric_r2sc})
+                           'MAE': metric_mae, 'MSE': metric_mse, 'RMSE': metric_rmse})
 
 
 PULocationIDs_Metrics = pd.DataFrame(metrics_all)
@@ -192,14 +189,14 @@ PULocationIDs_Metrics.head()
 ### Compare Models prediction vs. Last day count base on MAPE metric
 
 ```{python}
-def split_data_demand_metric(df, sorted_df, lower, upper, metrics):
-    PULocationIDs_Metrics_High = sorted_df[sorted_df['PULocationID'].isin(
+def plot_model_metric(df, sorted_df, lower, upper, metrics):
+    PULocationIDs_Metrics_Selected = sorted_df[sorted_df['PULocationID'].isin(
         df.iloc[lower:upper, 0])]
-    PULocationIDs_Metrics_High = PULocationIDs_Metrics_High.copy()
-    PULocationIDs_Metrics_High['PULocationID'] = PULocationIDs_Metrics_High['PULocationID'].astype(
+    PULocationIDs_Metrics_Selected = PULocationIDs_Metrics_Selected.copy()
+    PULocationIDs_Metrics_Selected['PULocationID'] = PULocationIDs_Metrics_Selected['PULocationID'].astype(
         'str')
     plt.figure(figsize=(20, 5))
-    sns.lineplot(data=PULocationIDs_Metrics_High,
+    sns.lineplot(data=PULocationIDs_Metrics_Selected,
                  x='PULocationID', y=metrics, hue='Model')
     plt.xticks(rotation=90)
     plt.title(f'Show Metric {metrics} For Location Id')
@@ -207,12 +204,12 @@ def split_data_demand_metric(df, sorted_df, lower, upper, metrics):
 ```
 
 ```{python}
-# Prepare data for sorting based on demands count`
-df = xgb_rides_df.groupby('PULocationID')[['count']].mean(
+# Prepare data for sorting based on demands count
+xgb_rides_df_sorted = xgb_rides_df.groupby('PULocationID')[['count']].mean(
 ).sort_values('count', ascending=False).reset_index()
-dummy = pd.Series(df['PULocationID']).to_frame()
-sorted_df = pd.merge(dummy, PULocationIDs_Metrics,
-                     on='PULocationID', how='left')
+dummy = pd.Series(xgb_rides_df_sorted['PULocationID']).to_frame()
+PULocationIDs_Metrics_sorted = pd.merge(dummy, PULocationIDs_Metrics,
+                                        on='PULocationID', how='left')
 ```
 
 <!-- #region tags=[] -->
@@ -220,25 +217,28 @@ sorted_df = pd.merge(dummy, PULocationIDs_Metrics,
 <!-- #endregion -->
 
 ```{python}
-split_data_demand_metric(df, sorted_df, 0, 50, 'MAPE')
+plot_model_metric(xgb_rides_df_sorted,
+                  PULocationIDs_Metrics_sorted, 0, 50, 'MAPE')
 ```
 
 #### Mid Demand
 
 ```{python}
-split_data_demand_metric(df, sorted_df, 50, 150, 'MAE')
+plot_model_metric(xgb_rides_df_sorted,
+                  PULocationIDs_Metrics_sorted, 50, 150, 'MAE')
 ```
 
 #### Low Demand
 
 ```{python}
-split_data_demand_metric(df, sorted_df, 150, 250, 'MAE')
+plot_model_metric(xgb_rides_df_sorted,
+                  PULocationIDs_Metrics_sorted, 150, 250, 'MAE')
 ```
 
 ### Compare Models predicion vs. Last day count based on actual count
 
 ```{python}
-def compare_model_scatter(actual_data, predictions_dict, lower_bound=0, upper_bound=262):
+def plot_model_actual(actual_data, pred_dict, lower_bound=0, upper_bound=262):
     selected_df_model = actual_data.groupby('PULocationID')[['count']].mean(
     ).sort_values('count', ascending=False).reset_index()
 
@@ -247,9 +247,9 @@ def compare_model_scatter(actual_data, predictions_dict, lower_bound=0, upper_bo
     plt.figure(figsize=(15, 5))
     plt.scatter(selected_df_model.index,
                 selected_df_model['count'], label="Actual", color='red', s=15)
-    for key in predictions_dict:
+    for key in pred_dict:
         sorted_df = pd.merge(
-            selected_df_model['PULocationID'], predictions_dict[key], on='PULocationID', how='left')
+            selected_df_model['PULocationID'], pred_dict[key], on='PULocationID', how='left')
         sorted_df = sorted_df.groupby('PULocationID')[['pred_count']].mean(
         ).sort_values('pred_count', ascending=False).reset_index()
         plt.plot(selected_df_model.index, sorted_df['pred_count'], label=key)
@@ -270,47 +270,92 @@ def compare_model_scatter(actual_data, predictions_dict, lower_bound=0, upper_bo
 <!-- #endregion -->
 
 ```{python}
-compare_model_scatter(xgb_rides_df, predictions_dict, 0, 50)
+plot_model_actual(xgb_rides_df, predictions_dict, 0, 50)
 ```
 
+<!-- #region tags=[] -->
 #### Mid Demand
+<!-- #endregion -->
 
 ```{python}
-compare_model_scatter(xgb_rides_df, predictions_dict, 50, 150)
+plot_model_actual(xgb_rides_df, predictions_dict, 50, 150)
 ```
 
 #### Low Demand
 
 ```{python}
-compare_model_scatter(xgb_rides_df, predictions_dict, 150, 250)
+plot_model_actual(xgb_rides_df, predictions_dict, 150, 250)
 ```
 
 # Model prediction results in metrics
 
-Metrics: MAPE, MAE, MSE, RMSE, R2Score
+Metrics: MAPE, MAE, MSE, RMSE
 
 ```{python}
-predictions_result = []
-for key in predictions_dict:
-    metric_mape = PULocationIDs_Metrics[PULocationIDs_Metrics['Model'] == key]['MAPE'].mean(
-    )
-    metric_mae = PULocationIDs_Metrics[PULocationIDs_Metrics['Model'] == key]['MAE'].mean(
-    )
-    metric_mse = PULocationIDs_Metrics[PULocationIDs_Metrics['Model'] == key]['MSE'].mean(
-    )
-    metric_rmse = PULocationIDs_Metrics[PULocationIDs_Metrics['Model'] == key]['RMSE'].mean(
-    )
-    metric_r2sc = PULocationIDs_Metrics[PULocationIDs_Metrics['Model'] == key]['R2_score'].mean(
-    )
-    predictions_result.append({'Model': key, 'MAPE': metric_mape, 'MAE': metric_mae,
-                              'MSE': metric_mse, 'RMSE': metric_rmse, 'R2_score': metric_r2sc})
+def caculate_metrics(df, sorted_df, lower=0, upper=266):
+    PULocationIDs_Metrics_Selected = sorted_df[sorted_df['PULocationID'].isin(
+        df.iloc[lower:upper, 0])]
+    PULocationIDs_Metrics_Selected = PULocationIDs_Metrics_Selected.copy()
+    PULocationIDs_Metrics_Selected['PULocationID'] = PULocationIDs_Metrics_Selected['PULocationID'].astype(
+        'str')
+    predictions_result = []
+    for key in predictions_dict:
+        metric_mape = PULocationIDs_Metrics_Selected[PULocationIDs_Metrics_Selected['Model'] == key]['MAPE'].mean(
+        )
+        metric_mae = PULocationIDs_Metrics_Selected[PULocationIDs_Metrics_Selected['Model'] == key]['MAE'].mean(
+        )
+        metric_mse = PULocationIDs_Metrics_Selected[PULocationIDs_Metrics_Selected['Model'] == key]['MSE'].mean(
+        )
+        metric_rmse = PULocationIDs_Metrics_Selected[PULocationIDs_Metrics_Selected['Model'] == key]['RMSE'].mean(
+        )
+        predictions_result.append({'Model': f"{key}_{lower}-{upper}", 'MAPE': metric_mape, 'MAE': metric_mae,
+                                  'MSE': metric_mse, 'RMSE': metric_rmse})
+    return predictions_result
 ```
 
+#### All PULocationsID
+
 ```{python}
-predictions_result = pd.DataFrame(predictions_result)
+predictions_result = pd.DataFrame(caculate_metrics(
+    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted))
 print(predictions_result.shape)
 predictions_result.head()
 ```
+
+<!-- #region tags=[] -->
+#### High Demand
+<!-- #endregion -->
+
+```{python}
+predictions_result = pd.concat([predictions_result, pd.DataFrame(caculate_metrics(
+    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted, 0, 50))], ignore_index=True)
+predictions_result = predictions_result.reset_index(drop=True)
+```
+
+<!-- #region tags=[] -->
+#### Mid Demand
+<!-- #endregion -->
+
+```{python}
+predictions_result = pd.concat([predictions_result, pd.DataFrame(caculate_metrics(
+    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted, 50, 150))], ignore_index=True)
+predictions_result = predictions_result.reset_index(drop=True)
+```
+
+#### Low Demand
+
+```{python}
+predictions_result = pd.concat([predictions_result, pd.DataFrame(caculate_metrics(
+    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted, 150, 250))], ignore_index=True)
+predictions_result = predictions_result.reset_index(drop=True)
+```
+
+```{python}
+print(predictions_result.shape)
+predictions_result.tail()
+```
+
+#### Save Metrics output to File
 
 ```{python}
 predictions_result.to_csv(PRED_RESULT_PATH)
