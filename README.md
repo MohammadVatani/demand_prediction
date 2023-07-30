@@ -1,92 +1,69 @@
 # Demand Prediction
 
+## Overview
+
+This repository contains code and resources for predicting the demand of Yellow Taxi Trip Records. The goal of this project is to create a predictive model that can forecast the demand for yellow taxi trips in a given area and time frame. The model can be used by taxi companies, transportation authorities, and other stakeholders to optimize their fleet management and provide better service to customers.
+
+## Table of Contents
+
+1. [Introduction](#introduction)
+2. [Data](#data)
+    - [Labeling (Data Cleaning and Label Data)](#labeling-data-cleaning-and-label-data)
+    - [Feature Selection](#feature-selection)
+3. [Methodology](#methodology)
+    - [Model Training](#model-training)
+    - [Model Evaluation](#model-evaluation)
+4. [Results](#results)
+
+## Introduction
+
+Demand prediction for yellow taxi trips is a crucial aspect of the transportation industry. Accurate forecasts enable taxi companies to anticipate surges in demand, allocate resources efficiently, and reduce customer waiting times. This project aims to build a robust predictive model using machine learning techniques to forecast the demand for yellow taxi trips in specific geographic areas and time intervals.
+
+## Data
+
+The dataset used for this project consists of historical yellow taxi trip records. The data includes features such as pickup/drop-off locations, timestamps, and other relevant attributes.
+
+### Labeling (Data Cleaning and Label Data)
+
+Before training the demand prediction model, the raw data undergoes a rigorous data cleaning process. This involves handling missing values, removing outliers, and addressing any data inconsistencies. Additionally, the data is labeled to indicate the demand (e.g., the number of taxi trips) in each time interval and geographic region.
+
+### Feature Selection
+
+To build an effective prediction model, relevant features are selected from the preprocessed dataset. Feature selection involves identifying attributes that significantly contribute to the demand prediction task. In addition to the original dataset, we introduce two crucial features: "Number of Demand Last Day" and "Number of Demand Last Week."
+
+## Methodology
+
+The demand prediction model is based on a combination of traditional time series forecasting techniques and machine learning algorithms. We preprocess the data, engineer relevant features, and split it into training and testing sets. The primary steps of the methodology are as follows:
+
+### Model Training
+
+In this step, we utilize the preprocessed data to train the demand prediction model. Depending on the dataset characteristics, we may employ various machine learning algorithms such as regression, support vector machines, or deep learning models to capture complex relationships in the data.
+
+### Model Evaluation
+
+For evaluating the performance of our demand prediction model, we utilize the Mean Absolute Percentage Error (MAPE) metric. MAPE is a widely-used evaluation metric in time series forecasting tasks, especially when dealing with demand prediction.
+
+#### Mean Absolute Percentage Error (MAPE)
+
+MAPE measures the accuracy of our predictions by calculating the absolute percentage difference between the predicted values and the actual demand. It is defined as follows:
+
+$$MAPE = (1/n) * ∑(|(Actual - Predicted)| / Actual) * 100$$
 
 
-## Getting started
+Where:
+- `n` is the number of data points in the test set.
+- `Actual` represents the actual demand for yellow taxi trips.
+- `Predicted` represents the demand values predicted by our model.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+A lower MAPE value indicates better accuracy, with 0% being a perfect prediction and higher values indicating larger prediction errors.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+During the model evaluation phase, we calculate the MAPE for our trained model on the test dataset. Additionally, we may provide visualizations that illustrate the performance of the model, comparing predicted demand against the actual demand over time.
 
-## Add your files
+The MAPE metric allows us to understand how well our demand prediction model performs and provides insights into any potential areas for improvement. We aim to achieve the lowest possible MAPE value to ensure our model accurately forecasts yellow taxi demand and contributes to efficient fleet management and service optimization.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+Please note that as the project progresses, we may explore other complementary metrics to gain a comprehensive understanding of the model's performance, and we will provide a detailed analysis of the evaluation results in the project documentation.
 
-```
-cd existing_repo
-git remote add origin https://hamgit.ir/choas/demand-prediction.git
-git branch -M main
-git push -uf origin main
-```
 
-## Integrate with your tools
+## Results
 
-- [ ] [Set up project integrations](https://hamgit.ir/choas/demand-prediction/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+We will provide a summary of the model's performance and evaluation metrics based on the test dataset. Additionally, visualizations of the predictions against the actual demand will be included. Users can assess the model's accuracy and potential for practical implementation based on these results.
