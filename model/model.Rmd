@@ -286,7 +286,7 @@ def error_calculator(real_demand, predicted_demand):
                   predicted_demand
               )
           ), 2
-      ), '%'
+      )
   )
   print(
       'MAE:   ',
@@ -297,7 +297,7 @@ def error_calculator(real_demand, predicted_demand):
                   predicted_demand
               )
           ), 2
-      ), '%'
+      )
   )
 ```
 
