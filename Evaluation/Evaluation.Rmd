@@ -39,7 +39,6 @@ DATA_FILE_PATHS = '/workspace/rahnemacollege/Project/Git/demand-prediction/data'
 SHAPE_FILE_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/map_data/taxi_zones/taxi_zones.shp'
 LR_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/lr_result.parquet'
 XGB_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/XGB_result.parquet'
-ARIMA_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/arima_output.xlsx'
 
 PRED_RESULT_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/Pred_Result.csv'
 
@@ -67,13 +66,6 @@ lr_rides_df.head()
 xgb_rides_df = load_data(XGB_PATH)
 print(xgb_rides_df.shape)
 xgb_rides_df.head()
-```
-
-```{python}
-arima_rides_df = pd.read_excel(ARIMA_PATH, index_col=0)
-arima_rides_df = arima_rides_df.rename(columns={'pred': 'pred_count'})
-print(arima_rides_df.shape)
-arima_rides_df.head()
 ```
 
 ### Improved Data Bound Within Range: 2023-04-01 to 2023-04-30
@@ -104,34 +96,16 @@ xgb_rides_df.head()
 ```
 
 ```{python}
-arima_rides_df = df_time_bound(arima_rides_df)
-print(arima_rides_df.shape)
-arima_rides_df.head()
-```
-
-```{python}
 predictions_dict = {
-    'baseline_last_day': None,
     'baseline_last_week': None,
-    'arima': None,
     'model_regression': None,
     'model_xgboost': None
 }
 ```
 
 ```{python}
-predictions_dict['baseline_last_day'] = xgb_rides_df[['date', 'PULocationID',
-                                                      'last_day_demand']].rename(columns={'last_day_demand': 'pred_count'})
-```
-
-```{python}
 predictions_dict['baseline_last_week'] = xgb_rides_df[['date', 'PULocationID',
                                                        'last_week_demand']].rename(columns={'last_week_demand': 'pred_count'})
-```
-
-```{python}
-predictions_dict['arima'] = arima_rides_df[[
-    'date', 'PULocationID', 'pred_count']]
 ```
 
 ```{python}
@@ -308,18 +282,9 @@ def caculate_metrics(df, sorted_df, lower=0, upper=266):
         )
         metric_rmse = PULocationIDs_Metrics_Selected[PULocationIDs_Metrics_Selected['Model'] == key]['RMSE'].mean(
         )
-        predictions_result.append({'Model': f"{key}_{lower}-{upper}", 'MAPE': metric_mape, 'MAE': metric_mae,
-                                  'MSE': metric_mse, 'RMSE': metric_rmse})
+        predictions_result.append({'Model': key, f"MAPE_{lower}-{upper}": metric_mape, f"MAE_{lower}-{upper}": metric_mae,
+                                  f"MSE_{lower}-{upper}": metric_mse, f"RMSE_{lower}-{upper}": metric_rmse})
     return predictions_result
-```
-
-#### All PULocationsID
-
-```{python}
-predictions_result = pd.DataFrame(caculate_metrics(
-    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted))
-print(predictions_result.shape)
-predictions_result.head()
 ```
 
 <!-- #region tags=[] -->
@@ -327,9 +292,8 @@ predictions_result.head()
 <!-- #endregion -->
 
 ```{python}
-predictions_result = pd.concat([predictions_result, pd.DataFrame(caculate_metrics(
-    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted, 0, 50))], ignore_index=True)
-predictions_result = predictions_result.reset_index(drop=True)
+df1 = pd.DataFrame(caculate_metrics(
+    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted, 0, 50))
 ```
 
 <!-- #region tags=[] -->
@@ -337,17 +301,37 @@ predictions_result = predictions_result.reset_index(drop=True)
 <!-- #endregion -->
 
 ```{python}
-predictions_result = pd.concat([predictions_result, pd.DataFrame(caculate_metrics(
-    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted, 50, 150))], ignore_index=True)
-predictions_result = predictions_result.reset_index(drop=True)
+df2 = pd.DataFrame(caculate_metrics(
+    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted, 50, 150))
 ```
 
 #### Low Demand
 
 ```{python}
-predictions_result = pd.concat([predictions_result, pd.DataFrame(caculate_metrics(
-    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted, 150, 250))], ignore_index=True)
-predictions_result = predictions_result.reset_index(drop=True)
+df3 = pd.DataFrame(caculate_metrics(
+    xgb_rides_df_sorted, PULocationIDs_Metrics_sorted, 150, 250))
+```
+
+Merge all the results together and sort them
+
+```{python}
+merged_result_df = df1.merge(df2, on='Model').merge(df3, on='Model')
+```
+
+```{python}
+# Define a custom sorting function to extract the numeric suffix and sort the columns accordingly
+def sort_columns_key(column):
+    if column == 'Model':
+        return (0, '')
+    metric, suffix = column.split('_')
+    return (1, metric, int(suffix.split('-')[0]), int(suffix.split('-')[1]))
+
+
+sorted_columns = sorted(merged_result_df.columns, key=sort_columns_key)
+```
+
+```{python}
+predictions_result = merged_result_df[sorted_columns]
 ```
 
 ```{python}
