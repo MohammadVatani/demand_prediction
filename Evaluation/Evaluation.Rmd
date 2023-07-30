@@ -185,7 +185,7 @@ print(PULocationIDs_Metrics.shape)
 PULocationIDs_Metrics.head()
 ```
 
-<!-- #region jp-MarkdownHeadingCollapsed=true tags=[] -->
+<!-- #region tags=[] -->
 # Visualization
 <!-- #endregion -->
 
@@ -282,7 +282,7 @@ compare_model_scatter(xgb_rides_df, predictions_dict, 50, 150)
 #### Low Demand
 
 ```{python}
-compare_model_scatter(xgb_rides_df, predictions_dict, 100, 200)
+compare_model_scatter(xgb_rides_df, predictions_dict, 150, 250)
 ```
 
 # Model prediction results in metrics
