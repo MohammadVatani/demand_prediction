@@ -140,12 +140,10 @@ for key in predictions_dict:
             selected_df_actual['count'], selected_df_model['pred_count'])
         metric_mae = mean_absolute_error(
             selected_df_actual['count'], selected_df_model['pred_count'])
-        metric_mse = mean_squared_error(
-            selected_df_actual['count'], selected_df_model['pred_count'])
         metric_rmse = mean_squared_error(
             selected_df_actual['count'], selected_df_model['pred_count'], squared=False)
         metrics_all.append({'PULocationID': locationID, 'Model': key, 'MAPE': metric_mape,
-                           'MAE': metric_mae, 'MSE': metric_mse, 'RMSE': metric_rmse})
+                           'MAE': metric_mae, 'RMSE': metric_rmse})
 
 
 PULocationIDs_Metrics = pd.DataFrame(metrics_all)
@@ -263,7 +261,7 @@ plot_model_actual(xgb_rides_df, predictions_dict, 150, 250)
 
 # Model prediction results in metrics
 
-Metrics: MAPE, MAE, MSE, RMSE
+Metrics: MAPE, MAE, RMSE
 
 ```{python}
 def caculate_metrics(df, sorted_df, lower=0, upper=266):
@@ -278,12 +276,10 @@ def caculate_metrics(df, sorted_df, lower=0, upper=266):
         )
         metric_mae = PULocationIDs_Metrics_Selected[PULocationIDs_Metrics_Selected['Model'] == key]['MAE'].mean(
         )
-        metric_mse = PULocationIDs_Metrics_Selected[PULocationIDs_Metrics_Selected['Model'] == key]['MSE'].mean(
-        )
         metric_rmse = PULocationIDs_Metrics_Selected[PULocationIDs_Metrics_Selected['Model'] == key]['RMSE'].mean(
         )
         predictions_result.append({'Model': key, f"MAPE_{lower}-{upper}": metric_mape, f"MAE_{lower}-{upper}": metric_mae,
-                                  f"MSE_{lower}-{upper}": metric_mse, f"RMSE_{lower}-{upper}": metric_rmse})
+                                   f"RMSE_{lower}-{upper}": metric_rmse})
     return predictions_result
 ```
 
