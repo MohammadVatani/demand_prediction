@@ -168,4 +168,4 @@ map_data
 /data
 .parquet
 .yaml
-.DS_Store
+**/.DS_Store
