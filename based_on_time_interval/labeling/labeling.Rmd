@@ -35,7 +35,7 @@ end_date = '2023-05-01'
 <!-- #endregion -->
 
 ```{python jupyter={'outputs_hidden': False}, pycharm={'name': '#%%\n'}}
-def load_data(file_paths, start_date=None, end_data=None):
+def load_data(file_paths, start_date=None, end_date=None):
     df = pd.read_parquet(file_paths)
     df['date'] = df['tpep_pickup_datetime'].dt.date.astype(str)
 
@@ -79,7 +79,20 @@ rides_df.head()
 <!-- #endregion -->
 
 ```{python}
-def labeling(rides_df: pd.DataFrame):
+def labeling_by_day(rides_df: pd.DataFrame):
+    aggregated_df = rides_df.groupby(
+        ['date', 'PULocationID']).size().reset_index(name='count')
+    unique_dates = rides_df['date'].unique()
+    unique_pu_location_ids = rides_df['PULocationID'].unique()
+    all_combinations = list(product(unique_dates, unique_pu_location_ids))
+    combinations_df = pd.DataFrame(all_combinations, columns=[
+                                   'date', 'PULocationID'])
+    label_df = aggregated_df.merge(combinations_df, how='right', on=[
+                                   'date', 'PULocationID']).fillna(0)
+    return label_df
+
+
+def labeling_by_interval(rides_df: pd.DataFrame):
     aggregated_df = rides_df.groupby(
         ['date', 'time_interval_number', 'PULocationID']).size().reset_index(name='count')
     unique_dates = rides_df['date'].unique()
@@ -95,15 +108,22 @@ def labeling(rides_df: pd.DataFrame):
     label_df = label_df.sort_values(
         by=['date', 'time_interval_number'], ascending=[True, True])
     return label_df
+```
 
+```{python}
+labels_day_df = labeling_by_day(rides_df)
+print(labels_day_df.shape)
+labels_day_df.head()
+```
 
-labels_df = labeling(rides_df)
-print(labels_df.shape)
-labels_df.head()
+```{python}
+labels_time_df = labeling_by_interval(rides_df)
+print(labels_time_df.shape)
+labels_time_df.head()
 ```
 
 ### Save labeling data
 
 ```{python jupyter={'outputs_hidden': False}, pycharm={'name': '#%%\n'}}
-labels_df.to_parquet(OUTPUT_PATH)
+labels_time_df.to_parquet(OUTPUT_PATH)
 ```
