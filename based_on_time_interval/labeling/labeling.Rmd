@@ -16,21 +16,27 @@ jupyter:
 
 ```{python jupyter={'outputs_hidden': False}, pycharm={'name': '#%%\n'}}
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
 from itertools import product
 ```
 
+<!-- #region tags=[] -->
 ### Config
+<!-- #endregion -->
 
 ```{python}
 DATA_FILE_PATHS = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/input/'
 
-OUTPUT_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/label/label_p2.parquet'
+OUTPUT_PATH_LABELING = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/label/label_p2.parquet'
+OUTPUT_PATH_FEAT = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/label/feat_p2.parquet'
 
 start_date = '2023-01-01'
 end_date = '2023-05-01'
 ```
 
-<!-- #region pycharm={"name": "#%% md\n"} -->
+<!-- #region pycharm={"name": "#%% md\n"} tags=[] -->
 ### Load data
 <!-- #endregion -->
 
@@ -74,7 +80,11 @@ print(rides_df.shape)
 rides_df.head()
 ```
 
-<!-- #region pycharm={"name": "#%% md\n"} -->
+<!-- #region tags=[] -->
+## Labeling
+<!-- #endregion -->
+
+<!-- #region pycharm={"name": "#%% md\n"} tags=[] -->
 ### Aggregate data and labeling
 <!-- #endregion -->
 
@@ -122,8 +132,80 @@ print(labels_time_df.shape)
 labels_time_df.head()
 ```
 
+<!-- #region tags=[] -->
+### Plot Histrogram Between Daily and Time Interval Data
+<!-- #endregion -->
+
+```{python}
+def dist_dayVStime(df1: pd.DataFrame, df2: pd.DataFrame, start_range_demand: int, end_range_demand: int):
+    plt.figure(figsize=(10, 7.5))
+
+    sns.histplot(data=df2,
+                 x='count',
+                 alpha=0.75,
+                 bins=15,
+                 binrange=(start_range_demand, end_range_demand),
+                 multiple='dodge',
+                 color='skyblue',
+                 label='Labeling by Time Interval')
+
+    sns.histplot(data=df1,
+                 x='count',
+                 alpha=0.5,
+                 bins=15,
+                 binrange=(start_range_demand, end_range_demand),
+                 multiple='dodge',
+                 color='orange',
+                 label='Labeling by Day')
+
+    plt.title('Histogram Of Distribution')
+    plt.xlabel('Counts')
+    plt.ylabel('Frequency')
+    plt.title('Comparison of Count Values')
+    plt.legend()
+    plt.show()
+```
+
+```{python}
+dist_dayVStime(labels_day_df, labels_time_df, 0, 50)
+```
+
 ### Save labeling data
 
 ```{python jupyter={'outputs_hidden': False}, pycharm={'name': '#%%\n'}}
-labels_time_df.to_parquet(OUTPUT_PATH)
+labels_time_df.to_parquet(OUTPUT_PATH_LABELING)
+```
+
+<!-- #region tags=[] -->
+## Feature Selection
+<!-- #endregion -->
+
+### Add calender and previous demands features
+
+```{python}
+def adding_feature(rides_df: pd.DataFrame):
+    rides_df['date'] = rides_df['date'].astype('datetime64[ns]')
+    rides_df['PU_day_of_month'] = rides_df['date'].dt.day.astype(np.uint8)
+    rides_df['PU_day_of_week'] = rides_df['date'].dt.weekday.astype(np.uint8)
+    rides_df = rides_df.sort_values(
+        ['PULocationID', 'date', 'time_interval_number'])
+    rides_df['last_interval_demand'] = rides_df.groupby(['PULocationID'])[
+        'count'].shift(1)
+    rides_df['last_day_demand'] = rides_df.groupby(['PULocationID'])[
+        'count'].shift(8)
+    rides_df['last_week_demand'] = rides_df.groupby(['PULocationID'])[
+        'count'].shift(56)
+
+    return rides_df
+
+
+labels_time_df_feat = adding_feature(labels_time_df)
+print(labels_time_df_feat.shape)
+labels_time_df_feat.head()
+```
+
+### Save features engineering  data
+
+```{python}
+labels_time_df_feat.to_parquet(OUTPUT_PATH_FEAT)
 ```
