@@ -16,25 +16,28 @@ jupyter:
 # Feature Selection
 <!-- #endregion -->
 
+### Import modules
+
 ```{python id="SKFmAIzF5K8j"}
-import datetime
 import numpy as np
 import pandas as pd
-import time
 import warnings
-
 from itertools import product
-from sklearn.model_selection import train_test_split
 
 warnings.simplefilter('ignore')
 ```
 
-### config
+### Config
 
 ```{python}
-DATA_FILE_PATHS = 'D:/rahnema/final project/dataset/'
-OUTPUT_PATH = 'D:/rahnema/final project/label/feature.parquet'
-START_DATE = '2023-01-01'
+DATA_FILE_PATHS = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/input/'
+
+OUTPUT_PATH_FEAT = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/label/feat_p2.parquet'
+
+start_date = '2023-01-01'
+end_date = '2023-05-01'
+
+number_interval_per_day = 8
 ```
 
 <!-- #region id="rluQ2Egj6oBm" -->
@@ -42,68 +45,109 @@ START_DATE = '2023-01-01'
 <!-- #endregion -->
 
 ```{python id="tssiMQFc6niv"}
-def load_data(file_paths, start_date=None):
+def load_data(file_paths, interval: int, start_date=None, end_date=None):
     df = pd.read_parquet(file_paths)
     df['date'] = df['tpep_pickup_datetime'].dt.date.astype(str)
 
     if start_date:
-        df = df[df['date'] > start_date].reset_index(drop=True)
+        if end_date:
+            df = df[(df['date'] >= start_date) & (
+                df['date'] < end_date)]
+        else:
+            df = df[df['date'] > start_date].reset_index(drop=True)
+    # Sort the DataFrame based on the 'tpep_pickup_datetime' column in ascending order
+    df = df.sort_values(by='date')
+    df = df.reset_index(drop=True)
+
+    interval_per_day = int(24/interval)
+
+    # Calculate the start time of each interval
+    df['interval_start'] = df['tpep_pickup_datetime'].dt.floor(
+        f"{interval_per_day}H")
+
+    # Calculate the end time of each interval
+    df['interval_end'] = df['interval_start'] + \
+        pd.Timedelta(hours=interval_per_day)
+
+    # Create a new column with the time interval in the desired format
+    df['time_interval'] = df['interval_start'].dt.strftime(
+        '%H:%M:%S') + ' - ' + df['interval_end'].dt.strftime('%H:%M:%S')
+
+    # Drop 'interval_start' and 'interval_end' columns
+    df.drop(columns=['interval_start', 'interval_end'], inplace=True)
+
+    # Create bins for interval numbers from 1 to interval
+    df['time_interval_number'] = pd.cut(
+        df['tpep_pickup_datetime'].dt.hour, bins=interval, labels=range(1, interval + 1), right=False)
 
     return df
+```
 
-
-rides_df = load_data(DATA_FILE_PATHS, START_DATE)
+```{python tags=c()}
+rides_df = load_data(
+    DATA_FILE_PATHS, number_interval_per_day, start_date, end_date)
 print(rides_df.shape)
 rides_df.head()
 ```
 
-### aggregate data and labeling
+### Aggregate data and labeling
 
 ```{python}
-def labeling(rides_df: pd.DataFrame):
-    aggregated_df = rides_df.groupby(['date', 'PULocationID']).size().reset_index(name='count')
+def labeling_by_interval(rides_df: pd.DataFrame):
+    aggregated_df = rides_df.groupby(
+        ['date', 'time_interval_number', 'PULocationID']).size().reset_index(name='count')
     unique_dates = rides_df['date'].unique()
+    unique_interval = rides_df['time_interval_number'].unique()
     unique_pu_location_ids = rides_df['PULocationID'].unique()
-    all_combinations = list(product(unique_dates, unique_pu_location_ids))
-    combinations_df = pd.DataFrame(all_combinations, columns=['date', 'PULocationID'])
-    label_df = aggregated_df.merge(combinations_df, how='right', on=['date', 'PULocationID']).fillna(0)
+    all_combinations = list(
+        product(unique_dates, unique_interval, unique_pu_location_ids))
+    combinations_df = pd.DataFrame(all_combinations, columns=[
+                                   'date', 'time_interval_number', 'PULocationID'])
+    label_df = aggregated_df.merge(combinations_df, how='right', on=[
+                                   'date', 'time_interval_number', 'PULocationID']).fillna(0)
+    # Sort based on two columns: 'time_interval_number' (ascending) and 'date' (ascending)
+    label_df = label_df.sort_values(
+        by=['date', 'time_interval_number'], ascending=[True, True])
     return label_df
-
-
-rides_df = labeling(rides_df)
-print(rides_df.shape)
-rides_df.head()
 ```
 
-### adding calender features
+```{python}
+labels_time_df = labeling_by_interval(rides_df)
+print(labels_time_df.shape)
+labels_time_df.head()
+```
+
+### Adding features
 
 ```{python}
-def adding_feature(rides_df: pd.DataFrame):   
-    #rides_df['count']=rides_df['count'] + 1000
-    rides_df['date']=rides_df['date'].astype('datetime64')
+def adding_feature(rides_df: pd.DataFrame, interval: int):
+    rides_df['date'] = rides_df['date'].astype('datetime64[ns]')
     rides_df['PU_day_of_month'] = rides_df['date'].dt.day.astype(np.uint8)
-    rides_df['PU_day_of_week'] = rides_df['date'].dt.weekday.astype(np.uint8)        
-    rides_df = rides_df.sort_values(['date'])    
-    rides_df['last_day_demand'] = rides_df.groupby(['PULocationID'])['count'].shift(1)    
-    rides_df['last_week_demand'] = rides_df.groupby(['PULocationID'])['count'].shift(7)
-    
+    rides_df['PU_day_of_week'] = rides_df['date'].dt.weekday.astype(np.uint8)
+    rides_df = rides_df.sort_values(
+        ['PULocationID', 'date', 'time_interval_number'])
+    rides_df['last_day_demand'] = rides_df.groupby(['PULocationID'])[
+        'count'].shift(interval)
+    rides_df['last_week_demand'] = rides_df.groupby(['PULocationID'])[
+        'count'].shift(interval * 7)
+
     return rides_df
-
-rides_df=adding_feature(rides_df)
-print(rides_df.shape)
-rides_df.head()
 ```
-
-### checking one week of data as a sample
 
 ```{python}
-rides_df[(rides_df['PULocationID'] == 79)].tail(8)
+labels_time_df_feat = adding_feature(labels_time_df, number_interval_per_day)
+print(labels_time_df_feat.shape)
+labels_time_df_feat.head()
 ```
+
+### Checking two days of data as a sample
+
+```{python}
+labels_time_df_feat[(labels_time_df_feat['PULocationID'] == 79)].tail(16)
+```
+
+### Save features engineering  data
 
 ```{python id="sk32WEWjpVdB"}
-rides_df.to_parquet(OUTPUT_PATH)
-```
-
-```{python}
-
+labels_time_df_feat.to_parquet(OUTPUT_PATH_FEAT)
 ```
