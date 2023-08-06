@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 import seaborn as sns
+import time
 from itertools import product
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_absolute_percentage_error
@@ -36,11 +37,11 @@ from sklearn.metrics import mean_squared_error
 
 ```{python}
 DATA_FILE_PATHS = '/workspace/rahnemacollege/Project/Git/demand-prediction/data'
-SHAPE_FILE_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/map_data/taxi_zones/taxi_zones.shp'
-LR_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/lr_result.parquet'
-XGB_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/XGB_result.parquet'
 
-PRED_RESULT_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/Pred_Result.csv'
+LR_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/output/lr_result.parquet'
+XGB_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/output/XGB_result.parquet'
+
+PRED_RESULT_PATH = f"/workspace/rahnemacollege/Project/Git/demand-prediction/data/Pred_Result_{int(time.time())}.csv"
 
 start_date_test = '2023-04-01'
 end_date_test = '2023-05-01'
