@@ -7,12 +7,13 @@ jupyter:
       format_version: '1.2'
       jupytext_version: 1.14.4
   kernelspec:
-    display_name: Python 3
+    display_name: Python 3 (ipykernel)
+    language: python
     name: python3
 ---
 
 <!-- #region id="KcBNv2YLohK9" -->
-# imports
+# Import modules
 <!-- #endregion -->
 
 ```{python id="YyX5k-wBqY14"}
@@ -43,10 +44,14 @@ warnings.simplefilter('ignore')
 <!-- #endregion -->
 
 ```{python id="VyDYzlYcQU2M"}
-DATA_FILE_PATHS = '/content/drive/MyDrive/RC/data/'
-START_DATE = '2023-01-01'
-TEST_DATE = '2023,4,1'
-LAST_DATE = '2023,5,1'
+DATA_FILE_PATHS = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/input/'
+
+start_date = '2023-01-01'
+start_date_test = '2023-04-01'
+end_date = '2023-05-01'
+
+number_interval_per_day = 8 
+
 FEATURE_LIST = [
     'PULocationID',
     'PU_day_of_month',
@@ -54,99 +59,132 @@ FEATURE_LIST = [
     'last_day_demand',
     'last_week_demand'
 ]
+
 TARGET = 'count'
 VALIDATION_SPLIT_RATIO = 0.2
-LR_OUTPUT_PATH = '/content/drive/MyDrive/RC/output/lr_result.parquet'
-XGB_OUTPUT_PATH = '/content/drive/MyDrive/RC/output/XGB_result.parquet'
+
+LR_OUTPUT_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/output/lr_result.parquet'
+XGB_OUTPUT_PATH = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/output/XGB_result.parquet'
 ```
 
-<!-- #region id="StaYCoWf96ac" -->
-# Load Data
+<!-- #region pycharm={"name": "#%% md\n"} tags=[] -->
+# Load data
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 370}, id="yjVGfzNR-Eig", outputId="7342458b-3495-4250-9d62-bb0607b588f6"}
-def load_data(file_paths, start_date = None):
+```{python jupyter={'outputs_hidden': False}, pycharm={'name': '#%%\n'}}
+def load_data(file_paths, interval: int, start_date=None, end_date=None):
     df = pd.read_parquet(file_paths)
     df['date'] = df['tpep_pickup_datetime'].dt.date.astype(str)
 
     if start_date:
-        df = df[df['date'] > start_date].reset_index(drop = True)
+        if end_date:
+            df = df[(df['date'] >= start_date) & (
+                df['date'] < end_date)]
+        else:
+            df = df[df['date'] > start_date].reset_index(drop=True)
+    # Sort the DataFrame based on the 'tpep_pickup_datetime' column in ascending order
+    df = df.sort_values(by='date')
+    df = df.reset_index(drop=True)
+
+    interval_per_day = int(24/interval)
+
+    # Calculate the start time of each interval
+    df['interval_start'] = df['tpep_pickup_datetime'].dt.floor(
+        f"{interval_per_day}H")
+
+    # Calculate the end time of each interval
+    df['interval_end'] = df['interval_start'] + \
+        pd.Timedelta(hours=interval_per_day)
+
+    # Create a new column with the time interval in the desired format
+    df['time_interval'] = df['interval_start'].dt.strftime(
+        '%H:%M:%S') + ' - ' + df['interval_end'].dt.strftime('%H:%M:%S')
+
+    # Drop 'interval_start' and 'interval_end' columns
+    df.drop(columns=['interval_start', 'interval_end'], inplace=True)
+
+    # Create bins for interval numbers from 1 to interval
+    df['time_interval_number'] = pd.cut(
+        df['tpep_pickup_datetime'].dt.hour, bins=interval, labels=range(1, interval + 1), right=False)
+
     return df
+```
 
+```{python}
 rides_df = load_data(
-    DATA_FILE_PATHS,
-    START_DATE
-)
-
+    DATA_FILE_PATHS, number_interval_per_day, start_date, end_date)
 print(rides_df.shape)
 rides_df.head()
 ```
 
-<!-- #region id="FUks4V5XAXlv" -->
-# aggregate data and labeling
+<!-- #region tags=[] -->
+## Labeling
 <!-- #endregion -->
 
-```{python id="xJH5F6sXAlId", colab={'base_uri': 'https://localhost:8080/', 'height': 221}, outputId="429d2a8f-3dbc-4928-ffab-34ab69581d49"}
-def labeling(rides_df : pd.DataFrame):
+<!-- #region pycharm={"name": "#%% md\n"} tags=[] -->
+### Aggregate data and labeling
+<!-- #endregion -->
+
+```{python}
+def labeling_by_interval(rides_df: pd.DataFrame):
     aggregated_df = rides_df.groupby(
-        ['date', 'PULocationID']).size().reset_index(name='count')
+        ['date', 'time_interval_number', 'PULocationID']).size().reset_index(name='count')
     unique_dates = rides_df['date'].unique()
+    unique_interval = rides_df['time_interval_number'].unique()
     unique_pu_location_ids = rides_df['PULocationID'].unique()
     all_combinations = list(
-        product(
-            unique_dates,
-            unique_pu_location_ids
-        )
-    )
-    combinations_df = pd.DataFrame(
-        all_combinations,
-        columns=['date', 'PULocationID']
-    )
-    label_df = aggregated_df.merge(
-        combinations_df,
-        how='right',
-        on=['date', 'PULocationID']
-    ).fillna(0)
-
+        product(unique_dates, unique_interval, unique_pu_location_ids))
+    combinations_df = pd.DataFrame(all_combinations, columns=[
+                                   'date', 'time_interval_number', 'PULocationID'])
+    label_df = aggregated_df.merge(combinations_df, how='right', on=[
+                                   'date', 'time_interval_number', 'PULocationID']).fillna(0)
+    # Sort based on two columns: 'time_interval_number' (ascending) and 'date' (ascending)
+    label_df = label_df.sort_values(
+        by=['date', 'time_interval_number'], ascending=[True, True])
     return label_df
-
-rides_df = labeling(rides_df)
-
-print(rides_df.shape)
-rides_df.head()
 ```
 
-<!-- #region id="Cq8RnMF1Hz1H" -->
-# Feature Extraction
+```{python}
+labels_time_df = labeling_by_interval(rides_df)
+print(labels_time_df.shape)
+labels_time_df.head()
+```
+
+<!-- #region tags=[] -->
+## Feature Selection
 <!-- #endregion -->
 
-<!-- #region id="_y2dkjlCCnsh" -->
-## adding calender features
-<!-- #endregion -->
+### Add previous demands features
 
-```{python id="EMPPqhClCrur", colab={'base_uri': 'https://localhost:8080/', 'height': 221}, outputId="8e2955e4-ed46-4022-fba7-8c820ee70f0d"}
-def adding_feature(rides_df : pd.DataFrame):
-    rides_df['date'] = rides_df['date'].astype('datetime64')
+```{python}
+def adding_feature(rides_df: pd.DataFrame, interval: int):
+    rides_df['date'] = rides_df['date'].astype('datetime64[ns]')
     rides_df['PU_day_of_month'] = rides_df['date'].dt.day.astype(np.uint8)
     rides_df['PU_day_of_week'] = rides_df['date'].dt.weekday.astype(np.uint8)
-    rides_df = rides_df.sort_values(['date'])
-    rides_df['last_day_demand'] = rides_df.groupby(['PULocationID'])['count'].shift(1)
-    rides_df['last_week_demand'] = rides_df.groupby(['PULocationID'])['count'].shift(7)
+    rides_df = rides_df.sort_values(
+        ['PULocationID', 'date', 'time_interval_number'])
+    rides_df['last_day_demand'] = rides_df.groupby(['PULocationID'])[
+        'count'].shift(interval)
+    rides_df['last_week_demand'] = rides_df.groupby(['PULocationID'])[
+        'count'].shift(interval * 7)
+
+    # To handle the issue with MAPE and zero values in the count column, we replace zeros
+    # with the one value. This prevents division by zero and ensures
+    # accurate evaluation of the metric.
+    rides_df.loc[rides_df['count']
+                 == 0, 'count'] = 1
+
     return rides_df
-
-rides_df['count'] = rides_df['count'] + 1
-rides_df = adding_feature(rides_df)
-
-print(rides_df.shape)
-rides_df.head()
 ```
 
-<!-- #region id="kLcpL5VlHrXw" -->
-## checking one week of data as a sample
-<!-- #endregion -->
+```{python}
+labels_time_df_feat = adding_feature(labels_time_df, number_interval_per_day)
+print(labels_time_df_feat.shape)
+labels_time_df_feat.head()
+```
 
-```{python id="dSVH2ROjH_Hs", colab={'base_uri': 'https://localhost:8080/', 'height': 297}, outputId="fe254df8-7825-4430-9a46-50fba5d9f999"}
-rides_df[(rides_df['PULocationID'] == 79)].tail(8)
+```{python}
+rides_df = labels_time_df_feat
 ```
 
 <!-- #region id="tvzGyWPQEM2-" -->
@@ -155,16 +193,6 @@ rides_df[(rides_df['PULocationID'] == 79)].tail(8)
 
 ```{python colab={'base_uri': 'https://localhost:8080/', 'height': 221}, id="VKDnrg9t6u84", outputId="1be04b7c-4beb-4682-c1b9-82dd41db53b3"}
 rides_df = rides_df.dropna()
-date = LAST_DATE.split(',')
-end_date_time = datetime.datetime(
-    int(date[0]),
-    int(date[1]),
-    int(date[2])
-)
-rides_df = rides_df[rides_df['date'] < end_date_time]
-
-print(rides_df.shape)
-rides_df.head()
 ```
 
 <!-- #region id="7wZpKFTMS7Qb" -->
@@ -173,33 +201,34 @@ rides_df.head()
 
 ```{python colab={'base_uri': 'https://localhost:8080/', 'height': 269}, id="R-OC1_1yS-mF", outputId="5c79c970-8719-4d0d-c154-65ecbf4bdbc7"}
 def train_and_test_split(data, split_date):
+    train_data = data[
+        rides_df['date'] < split_date
+    ]
+    test_data = data[
+        rides_df['date'] >= split_date
+    ]
 
-  date = split_date.split(',')
-  start_date_time = datetime.datetime(
-      int(date[0]),
-      int(date[1]),
-      int(date[2])
-  )
-  train_data = data[
-      rides_df['date'] < start_date_time
-  ]
-  test_data = data[
-      rides_df['date'] >= start_date_time
-  ]
+    train_data.set_index('date', inplace=True)
+    test_data.set_index('date', inplace=True)
 
-  train_data.set_index('date', inplace = True)
-  test_data.set_index('date', inplace = True)
+    return train_data, test_data
+```
 
-  return train_data, test_data
-
+```{python}
 train_df, test_df = train_and_test_split(
     rides_df,
-    TEST_DATE
+    start_date_test
 )
+```
 
+```{python}
 print(train_df.shape)
-print(test_df.shape)
 train_df.head()
+```
+
+```{python}
+print(test_df.shape)
+test_df.head()
 ```
 
 <!-- #region id="aOdaGdscgNQM" -->
@@ -208,10 +237,30 @@ train_df.head()
 
 ```{python id="eoTmtHn-ruLL"}
 train_label_df = train_df[TARGET]
-train_df = train_df[FEATURE_LIST]
+train_df = train_df.drop(TARGET, axis=1)
 
 test_label_df = test_df[TARGET]
-test_df = test_df[FEATURE_LIST]
+test_df = test_df.drop(TARGET, axis=1)
+```
+
+```{python}
+print(train_df.shape)
+train_df.head()
+```
+
+```{python}
+print(train_label_df.shape)
+train_label_df.head()
+```
+
+```{python}
+print(test_df.shape)
+test_df.head()
+```
+
+```{python}
+print(test_label_df.shape)
+test_label_df.head()
 ```
 
 <!-- #region id="0Ohrvwo2fwnC" -->
@@ -222,8 +271,8 @@ test_df = test_df[FEATURE_LIST]
 train_df, validation_df, train_label_df, validation_label_df = train_test_split(
     train_df,
     train_label_df,
-    test_size = VALIDATION_SPLIT_RATIO,
-    shuffle = False
+    test_size=VALIDATION_SPLIT_RATIO,
+    shuffle=False
 )
 ```
 
@@ -233,14 +282,15 @@ train_df, validation_df, train_label_df, validation_label_df = train_test_split(
 
 ```{python id="mdnjPVLundY2"}
 def model_training(ml_model, train_df, train_label_df, **params):
-  model = ml_model(**params)
-  model.fit(
-      train_df,
-      train_label_df
-  )
-  return model
+    model = ml_model(**params)
+    model.fit(
+        train_df,
+        train_label_df
+    )
+    return model
 
-replace_negatives = np.vectorize(lambda x : 0 if x < 0 else x)
+
+replace_negatives = np.vectorize(lambda x: 0 if x < 0 else x)
 ```
 
 <!-- #region id="LN9nCqA9GSy1" -->
@@ -249,56 +299,57 @@ replace_negatives = np.vectorize(lambda x : 0 if x < 0 else x)
 
 ```{python id="wddQ_PcZqlI2"}
 def symmetric_mean_absolute_percentage_error(actual, predicted) -> float:
-	return round(
-      np.mean(
-          np.abs(predicted - actual) /
-          ((np.abs(predicted) + np.abs(actual)) / 2)
-      ), 4
-  )
+    return round(
+        np.mean(
+            np.abs(predicted - actual) /
+            ((np.abs(predicted) + np.abs(actual)) / 2)
+        ), 4
+    )
+
 
 def error_calculator(real_demand, predicted_demand):
-  print(
-      'SMAPE: ',
-      round(
-          symmetric_mean_absolute_percentage_error(
-              real_demand,
-              predicted_demand
-          ) * 100 , 2
-      ), '%'
-  )
-  print(
-      'MAPE:  ',
-      round(
-          float(
-              mean_absolute_percentage_error(
-                  real_demand,
-                  predicted_demand
-              )
-          ) * 100, 2
-      ), '%'
-  )
-  print(
-      'MSE:   ',
-      round(
-          float(
-              mean_squared_error(
-                  real_demand,
-                  predicted_demand
-              )
-          ), 2
-      )
-  )
-  print(
-      'MAE:   ',
-      round(
-          float(
-              mean_absolute_error(
-                  real_demand,
-                  predicted_demand
-              )
-          ), 2
-      )
-  )
+    print(
+        'SMAPE: ',
+        round(
+            symmetric_mean_absolute_percentage_error(
+                real_demand,
+                predicted_demand
+            ) * 100, 2
+        ), '%'
+    )
+    print(
+        'MAPE:  ',
+        round(
+            float(
+                mean_absolute_percentage_error(
+                    real_demand,
+                    predicted_demand
+                )
+            ) * 100, 2
+        ), '%'
+    )
+    print(
+        'MSE:   ',
+        round(
+            float(
+                mean_squared_error(
+                    real_demand,
+                    predicted_demand
+                )
+            ), 2
+        )
+    )
+    print(
+        'MAE:   ',
+        round(
+            float(
+                mean_absolute_error(
+                    real_demand,
+                    predicted_demand
+                )
+            ), 2
+        )
+    )
 ```
 
 <!-- #region id="UJ9QcWTapixZ" -->
@@ -376,26 +427,27 @@ lr_result_df.to_parquet(LR_OUTPUT_PATH)
 
 ```{python colab={'base_uri': 'https://localhost:8080/'}, id="EtPJikUtoV5t", outputId="23199f57-5128-4836-c235-533e317c4706"}
 def hyper_parameter_tuning(n_estimators, learning_rate, max_depth, scoring_method):
-  parameters = {
-      'n_estimators' : n_estimators,
-      'learning_rate' : learning_rate,
-      'max_depth' : max_depth
-  }
+    parameters = {
+        'n_estimators': n_estimators,
+        'learning_rate': learning_rate,
+        'max_depth': max_depth
+    }
 
-  gc = GridSearchCV(
-      XGBRegressor(),
-      parameters,
-      scoring = scoring_method
-  )
+    gc = GridSearchCV(
+        XGBRegressor(tree_method='gpu_hist', gpu_id=1),
+        parameters,
+        scoring=scoring_method
+    )
 
-  gc.fit(
-      train_df,
-      train_label_df
-  )
+    gc.fit(
+        train_df,
+        train_label_df
+    )
 
-  param = gc.best_params_
+    param = gc.best_params_
 
-  return param
+    return param
+
 
 n_estimators = [700, 1000]
 learning_rate = [0.15, 0.1, 0.01]
@@ -421,9 +473,11 @@ XGB_model = model_training(
     XGBRegressor,
     train_df,
     train_label_df,
-    n_estimators = param['n_estimators'],
-    learning_rate = param['learning_rate'],
-    max_depth = param['max_depth']
+    n_estimators=param['n_estimators'],
+    learning_rate=param['learning_rate'],
+    max_depth=param['max_depth'],
+    tree_method='gpu_hist',
+    gpu_id=1
 )
 ```
 
