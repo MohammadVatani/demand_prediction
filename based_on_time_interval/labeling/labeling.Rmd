@@ -15,10 +15,7 @@ jupyter:
 ### Import modules
 
 ```{python jupyter={'outputs_hidden': False}, pycharm={'name': '#%%\n'}}
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import seaborn as sns
 from itertools import product
 ```
 
@@ -30,7 +27,6 @@ from itertools import product
 DATA_FILE_PATHS = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/input/'
 
 OUTPUT_PATH_LABELING = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/label/label_p2.parquet'
-OUTPUT_PATH_FEAT = '/workspace/rahnemacollege/Project/Git/demand-prediction/data/label/feat_p2.parquet'
 
 start_date = '2023-01-01'
 end_date = '2023-05-01'
