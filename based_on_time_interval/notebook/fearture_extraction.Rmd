@@ -112,24 +112,22 @@ labels_time_df.head()
 ### Adding calender features
 
 ```{python}
-def adding_feature(rides_df: pd.DataFrame):
+def adding_feature(rides_df: pd.DataFrame, number_intervals_per_day: int):
     rides_df['date'] = rides_df['date'].astype('datetime64[ns]')
     rides_df['PU_day_of_month'] = rides_df['date'].dt.day.astype(np.uint8)
     rides_df['PU_day_of_week'] = rides_df['date'].dt.weekday.astype(np.uint8)
     rides_df = rides_df.sort_values(
         ['PULocationID', 'date', 'time_interval_number'])
-    rides_df['last_interval_demand'] = rides_df.groupby(['PULocationID'])[
-        'count'].shift(1)
     rides_df['last_day_demand'] = rides_df.groupby(['PULocationID'])[
-        'count'].shift(8)
+        'count'].shift(number_intervals_per_day)
     rides_df['last_week_demand'] = rides_df.groupby(['PULocationID'])[
-        'count'].shift(56)
+        'count'].shift(number_intervals_per_day*7)
 
     return rides_df
 ```
 
 ```{python}
-labels_time_df_feat = adding_feature(labels_time_df)
+labels_time_df_feat = adding_feature(labels_time_df, 8)
 print(labels_time_df_feat.shape)
 labels_time_df_feat.head()
 ```
