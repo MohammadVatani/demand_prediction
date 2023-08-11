@@ -5,7 +5,7 @@ jupyter:
       extension: .Rmd
       format_name: rmarkdown
       format_version: '1.2'
-      jupytext_version: 1.14.7
+      jupytext_version: 1.15.0
   kernelspec:
     display_name: Python 3
     language: python
@@ -21,6 +21,8 @@ import numpy as np
 import pandas as pd
 import warnings
 
+
+
 from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_percentage_error
@@ -28,6 +30,7 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor
+from sklearn.preprocessing import StandardScaler
 
 warnings.simplefilter('ignore')
 ```
@@ -37,14 +40,15 @@ warnings.simplefilter('ignore')
 <!-- #endregion -->
 
 ```{python id="VyDYzlYcQU2M", pycharm={'name': '#%%\n'}}
-BASE_PATH = "D:/projects/rahnamcollege-ml/demand-prediction/"
+BASE_PATH = 'E:/Mohsen/Rahnama College/'
 
-LABELED_DATA_PATH = BASE_PATH + 'data/label/label.parquet'
-FEATURE_DATAFRAME_PATH = BASE_PATH + 'data/output/features.parquet'
+LABELED_DATA_PATH = BASE_PATH + 'data/Features/label.parquet'
+FEATURE_DATAFRAME_PATH = BASE_PATH + 'data/Features/features.parquet'
 START_DATE = '2023-01-09'
 TEST_DATE = '2023-04-01'
 LAST_DATE = '2023-05-01'
 FEATURE_LIST = [
+#     'week_of_month',
     'PU_day_of_week',
     'last_day_demand',
     'last_week_demand',
@@ -56,8 +60,15 @@ FEATURE_LIST = [
 ]
 TARGET = 'label'
 VALIDATION_SPLIT_RATIO = 0.2
-LR_OUTPUT_PATH = BASE_PATH + 'data/output/lr_model_daily_result.parquet'
-XGB_OUTPUT_PATH = BASE_PATH + 'data/output/xgboost_model_daily_results.parquet'
+LR_OUTPUT_PATH_HIGH = BASE_PATH + 'data/output/lr_model_High_daily_result.parquet'
+LR_OUTPUT_PATH_MID = BASE_PATH + 'data/output/lr_model_Mid_daily_result.parquet'
+LR_OUTPUT_PATH_LOW = BASE_PATH + 'data/output/lr_model_low_daily_result.parquet'
+XGB_OUTPUT_PATH_HIGH = BASE_PATH + 'data/output/xgboost_model_High_daily_result.parquet'
+XGB_OUTPUT_PATH_MID = BASE_PATH + 'data/output/xgboost_model_Mid_daily_result.parquet'
+XGB_OUTPUT_PATH_LOW = BASE_PATH + 'data/output/xgboost_model_low_daily_result.parquet'
+
+LR_OUTPUT_PATH = BASE_PATH + 'data/output/lr_model_Split_daily_result.parquet'
+XGB_OUTPUT_PATH = BASE_PATH + 'data/output/xgboost_Split_model_daily_results.parquet'
 ```
 
 <!-- #region id="StaYCoWf96ac" pycharm={"name": "#%% md\n"} -->
@@ -97,7 +108,7 @@ label_df['date'] = label_df['date'].astype(str)
 feature_df['date'] = feature_df['date'].astype(str)
 
 rides_df = pd.merge(label_df, feature_df, on=['date', 'PULocationID'])
-rides_df.head()
+rides_df
 ```
 
 <!-- #region id="kLcpL5VlHrXw" pycharm={"name": "#%% md\n"} -->
@@ -105,7 +116,7 @@ rides_df.head()
 <!-- #endregion -->
 
 ```{python colab={'base_uri': 'https://localhost:8080/', 'height': 297}, id="dSVH2ROjH_Hs", outputId="fe254df8-7825-4430-9a46-50fba5d9f999", pycharm={'name': '#%%\n'}}
-rides_df[(rides_df['PULocationID'] == 79)].head()
+rides_df[(rides_df['PULocationID'] == 79)].head(8)
 ```
 
 <!-- #region id="tvzGyWPQEM2-" pycharm={"name": "#%% md\n"} -->
@@ -120,6 +131,23 @@ print(rides_df.shape)
 rides_df.head()
 ```
 
+### train model for high demand locations
+
+```{python}
+
+mean_demand = rides_df.groupby('PULocationID')['count'].mean().reset_index().sort_values(by=['count'], ascending=False)
+
+high_demand_locations = mean_demand.iloc[:50]['PULocationID'].values
+mid_demand_locations = mean_demand.iloc[50:150]['PULocationID'].values
+low_demand_locations = mean_demand.iloc[150:]['PULocationID'].values
+
+
+high_demand_rides_df = rides_df[rides_df['PULocationID'].isin(high_demand_locations)].reset_index(drop=True)
+mid_demand_rides_df=rides_df[rides_df['PULocationID'].isin(mid_demand_locations)].reset_index(drop=True)
+low_demand_rides_df=rides_df[rides_df['PULocationID'].isin(low_demand_locations)].reset_index(drop=True)
+
+```
+
 <!-- #region id="7wZpKFTMS7Qb" pycharm={"name": "#%% md\n"} -->
 ## Train and Test split
 <!-- #endregion -->
@@ -132,39 +160,16 @@ def train_and_test_split(df: pd.DataFrame, split_date):
   test.set_index('date', inplace = True)
   return train, test
 
-train_df, test_df = train_and_test_split(rides_df, TEST_DATE)
+train_df, test_df = train_and_test_split(high_demand_rides_df, TEST_DATE)
 
 print('train_df shape:', train_df.shape)
 print('test_df shape:', test_df.shape)
 train_df.head()
 ```
 
-<!-- #region id="aOdaGdscgNQM" pycharm={"name": "#%% md\n"} -->
-## Target and Feature split
-<!-- #endregion -->
+# ML Model 
 
-```{python id="eoTmtHn-ruLL", pycharm={'name': '#%%\n'}}
-train_set_label = train_df[TARGET]
-train_set = train_df[FEATURE_LIST]
-
-y_test = test_df[TARGET]
-x_test = test_df[FEATURE_LIST]
-```
-
-<!-- #region id="0Ohrvwo2fwnC" pycharm={"name": "#%% md\n"} -->
-## Train and Validation split
-<!-- #endregion -->
-
-```{python id="A_-X9bYeTO_j", pycharm={'name': '#%%\n'}}
-x_train, x_validation, y_train, y_validation = train_test_split(
-    train_set, train_set_label, test_size=VALIDATION_SPLIT_RATIO, shuffle=True)
-```
-
-<!-- #region id="ghHG1ei3gdme" pycharm={"name": "#%% md\n"} -->
-# ML Models
-<!-- #endregion -->
-
-```{python id="mdnjPVLundY2", pycharm={'name': '#%%\n'}}
+```{python}
 def model_training(ml_model, x_train, y_train, **params):
   model = ml_model(**params)
   model.fit(x_train, y_train)
@@ -173,11 +178,9 @@ def model_training(ml_model, x_train, y_train, **params):
 replace_negatives = np.vectorize(lambda x : 1 if x < 1 else x)
 ```
 
-<!-- #region id="LN9nCqA9GSy1" pycharm={"name": "#%% md\n"} -->
 ## Calculate Error
-<!-- #endregion -->
 
-```{python id="wddQ_PcZqlI2", pycharm={'name': '#%%\n'}}
+```{python}
 def symmetric_mean_absolute_percentage_error(actual, predicted):
     res = np.mean(np.abs(predicted - actual) / ((np.abs(predicted) + np.abs(actual)) / 2))
     return round(res, 4)
@@ -191,57 +194,8 @@ def error_calculator(real_demand, predicted_demand):
 
 ```
 
-<!-- #region id="UJ9QcWTapixZ" pycharm={"name": "#%% md\n"} -->
-## Linear Regression Model
-<!-- #endregion -->
-
-```{python id="P9IrrcU8iAft", pycharm={'name': '#%%\n'}}
-lr_model = model_training(LinearRegression, x_train, y_train)
-```
-
-<!-- #region id="9ioUk22GgpFy" pycharm={"name": "#%% md\n"} -->
-### Validation prediction
-<!-- #endregion -->
-
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="-4qoRLP4VqFr", outputId="d8f41d2a-9566-44cf-957a-c6975f876178", pycharm={'name': '#%%\n'}}
-lr_validation_pred = lr_model.predict(x_validation)
-error_calculator(y_validation,lr_validation_pred)
-```
-
-<!-- #region id="RtoGP9VchGKZ" pycharm={"name": "#%% md\n"} -->
-### Test prediction
-<!-- #endregion -->
-
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="tt6TaA5SVf65", outputId="8a9741c1-4abd-473c-a721-97c625efa6de", pycharm={'name': '#%%\n'}}
-lr_test_pred = lr_model.predict(x_test)
-error_calculator(
-    y_test * test_df['last_week_demand'], replace_negatives(lr_test_pred*test_df['last_week_demand']))
-```
-
-<!-- #region id="2GZMbrj_4lel" pycharm={"name": "#%% md\n"} -->
-### Result Data
-<!-- #endregion -->
-
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="JvIW0Jme4len", outputId="a0f3234c-ead6-4072-80e9-fd81d38f267f", pycharm={'name': '#%%\n'}}
-lr_result_df = test_df.copy()
-lr_result_df.drop('count',axis=1,inplace=True)
-lr_result_df['real demand'] = y_test * test_df['last_week_demand']
-lr_result_df['predicted demand'] =replace_negatives( lr_test_pred * test_df['last_week_demand'])
-
-print(lr_result_df.shape)
-lr_result_df.head()
-```
-
-```{python id="19J1PjyuG-iC", pycharm={'name': '#%%\n'}}
-lr_result_df.to_parquet(LR_OUTPUT_PATH)
-```
-
-<!-- #region id="_Zx1nQT8pixc" pycharm={"name": "#%% md\n"} -->
-## XGBoost Model
-<!-- #endregion -->
-
 <!-- #region id="etcdoxu8hcxW" pycharm={"name": "#%% md\n"} -->
-### Hyperparameter tuning
+## Hyperparameter tuning
 <!-- #endregion -->
 
 ```{python colab={'base_uri': 'https://localhost:8080/'}, id="EtPJikUtoV5t", outputId="23199f57-5128-4836-c235-533e317c4706", pycharm={'name': '#%%\n'}}
@@ -262,58 +216,87 @@ learning_rate = [0.15, 0.1, 0.01]
 max_depth = [3,5]
 scoring_method = 'neg_root_mean_squared_error'
 
-params = hyper_parameter_tuning(
-    x_train,
-    y_train,
-    n_estimators,
-    learning_rate,
-    max_depth,
-    scoring_method
-)
 
-print(params)
 ```
 
 <!-- #region id="Zo2pKnCThqTm" pycharm={"name": "#%% md\n"} -->
 ### XGBoost Model
 <!-- #endregion -->
 
-```{python id="4jiwwi53pBbM", pycharm={'name': '#%%\n'}}
-XGB_model = model_training(XGBRegressor, x_train, y_train, **params)
+```{python}
+def fit_model(df,model_name,output):
+    train_df, test_df = train_and_test_split(df, TEST_DATE)
+    train_set_label = train_df[TARGET]
+    train_set = train_df[FEATURE_LIST]
+
+    y_test = test_df[TARGET]
+    x_test = test_df[FEATURE_LIST]
+    x_train, x_validation, y_train, y_validation = train_test_split(
+    train_set, train_set_label, test_size=VALIDATION_SPLIT_RATIO, shuffle=True)
+    if model_name==XGBRegressor:
+        params = hyper_parameter_tuning(
+                    x_train,
+                    y_train,
+                    n_estimators,
+                    learning_rate,
+                    max_depth,
+                    scoring_method
+                )
+
+        model = model_training(model_name, x_train, y_train,**params)
+    else:    
+        model = model_training(model_name, x_train, y_train)
+
+    test_pred = model.predict(x_test)
+    error_calculator(
+        y_test * test_df['last_week_demand'], replace_negatives(test_pred*test_df['last_week_demand']))
+    result_df = test_df.copy()
+    result_df.drop('count',axis=1,inplace=True)
+    result_df['real demand'] = y_test * test_df['last_week_demand']
+    result_df['predicted demand'] =replace_negatives( test_pred * test_df['last_week_demand'])
+    result_df.to_parquet(output)
 ```
 
-<!-- #region id="Y1ruHSFikZfu" pycharm={"name": "#%% md\n"} -->
-### Validation prediction
-<!-- #endregion -->
+```{python}
+print('Linear Regression \nhigh demand')
+fit_model(high_demand_rides_df,LinearRegression,LR_OUTPUT_PATH_HIGH)
+print('\nMid Demand')
+fit_model(mid_demand_rides_df,LinearRegression,LR_OUTPUT_PATH_MID)
+print('\nLow Demand')
+fit_model(low_demand_rides_df,LinearRegression,LR_OUTPUT_PATH_LOW)
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="Cs6kMlFLklAP", outputId="607c7e12-2301-46f7-8c32-f2f8b3b6afcf", pycharm={'name': '#%%\n'}}
-XGB_validation_pred = (XGB_model.predict(x_validation))
-error_calculator(y_validation,XGB_validation_pred)
 ```
 
-<!-- #region id="crmdtYCakcDk" pycharm={"name": "#%% md\n"} -->
-### Test prediction
-<!-- #endregion -->
+```{python}
+print('XGboost Regression \nhigh demand')
+fit_model(high_demand_rides_df,XGBRegressor,XGB_OUTPUT_PATH_HIGH)
+print('\nMid Demand')
+fit_model(mid_demand_rides_df,XGBRegressor,XGB_OUTPUT_PATH_MID)
+print('\nLow Demand')
+fit_model(low_demand_rides_df,XGBRegressor,XGB_OUTPUT_PATH_LOW)
 
-```{python colab={'base_uri': 'https://localhost:8080/'}, id="FTeKWnmNkoWy", outputId="35bf8995-bc54-44f8-da85-f127fe43eaa0", pycharm={'name': '#%%\n'}}
-XGB_test_pred = (XGB_model.predict(x_test))
-error_calculator(y_test * test_df['last_week_demand'],replace_negatives(XGB_test_pred * test_df['last_week_demand']))
 ```
 
 <!-- #region id="-tvgz0FB4anZ" pycharm={"name": "#%% md\n"} -->
 ### Result Data
 <!-- #endregion -->
 
-```{python colab={'base_uri': 'https://localhost:8080/', 'height': 252}, id="gmF1vuTn0l-5", outputId="f17bdc63-1d56-49d5-d862-c7f9d9cbd6a5", pycharm={'name': '#%%\n'}}
-XGB_result_df = test_df.copy()
-XGB_result_df.drop('count',axis=1,inplace=True)
-XGB_result_df['real demand'] = y_test * test_df['last_week_demand']
-XGB_result_df['predicted demand'] = replace_negatives(XGB_test_pred * test_df['last_week_demand'])
+### Merge 
 
-print(XGB_result_df.shape)
-XGB_result_df.head()
+```{python}
+def merge_after_pred(low_path,mid_path,high_path,output_path):
+    low=pd.read_parquet(low_path)
+    mid=pd.read_parquet(mid_path)
+    high=pd.read_parquet(high_path)
+    return pd.concat([low,mid,high]).to_parquet(output_path)
+merge_after_pred(XGB_OUTPUT_PATH_LOW,XGB_OUTPUT_PATH_MID,XGB_OUTPUT_PATH_HIGH,XGB_OUTPUT_PATH)
+
 ```
 
-```{python id="O0mga6itGpIQ", pycharm={'name': '#%%\n'}}
-XGB_result_df.to_parquet(XGB_OUTPUT_PATH)
+```{python}
+merge_after_pred(LR_OUTPUT_PATH_LOW,LR_OUTPUT_PATH_MID,LR_OUTPUT_PATH_HIGH,LR_OUTPUT_PATH)
+```
+
+```{python}
+
 ```
