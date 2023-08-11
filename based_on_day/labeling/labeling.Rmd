@@ -59,6 +59,8 @@ def labeling(rides_df: pd.DataFrame):
     all_combinations = list(product(unique_dates, unique_pu_location_ids))
     combinations_df = pd.DataFrame(all_combinations, columns=['date', 'PULocationID'])
     label_df = aggregated_df.merge(combinations_df, how='right', on=['date', 'PULocationID']).fillna(0)
+    label_df['count'] = label_df['count'] + 1 
+    label_df.sort_values(by=['PULocationID', 'date'], inplace=True)
     return label_df
 
 
