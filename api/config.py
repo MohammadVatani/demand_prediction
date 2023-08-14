@@ -7,3 +7,6 @@ with open('data/location_ids/segmentation.json') as file:
 high_demands = data['HIGH']
 low_demands = data['LOW']
 mid_demands = data['MID']
+
+START_TRAINING_DATE = '2023-01-01'
+END_TRAINING_DATE = '2023-04-31'
