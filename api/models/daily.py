@@ -49,7 +49,8 @@ class DailyPrediction(Prediction):
     def read_dataset(self):
         return DailyDataPreparation.get_featured_data()
 
-    def read_predict(self, Model, location_id, **time_kwargs):
-        location_df = self._cache[Model.name]
+    @classmethod
+    def read_predict(cls, Model, location_id, **time_kwargs):
+        location_df = cls.pred_data[Model.name]
         row_item = location_df[location_df['date'] == time_kwargs['date']].iloc[0]
-        return row_item[self.pred_field]
+        return row_item[cls.pred_field]

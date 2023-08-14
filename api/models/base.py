@@ -37,16 +37,15 @@ class AbstractModel(ABC):
         
 
 class Prediction(ABC):
+    pred_data = None
     base_path_data = './results'
     interval: str
     models: List[Type[AbstractModel]]
     target_columns: List
     pred_field = 'pred'
 
-    def __init__(self, max_date, cache=False) -> None:
+    def __init__(self, max_date) -> None:
         self.max_date = max_date
-        if cache:
-            self._cache = self.get_data()
 
     @classmethod
     def match(cls, model_name):
@@ -56,10 +55,11 @@ class Prediction(ABC):
     def read_dataset(self):
         pass
 
-    def get_data(self):
+    @classmethod
+    def get_data(cls):
         results = {}
-        for Model in self.models:
-            path = os.path.join(self.base_path_data, Model.save_path)
+        for Model in cls.models:
+            path = os.path.join(cls.base_path_data, Model.save_path)
             df = pd.read_parquet(path)
             results[Model.name] = df
         return results
@@ -83,19 +83,22 @@ class Prediction(ABC):
             result_df = pd.concat([train_df, test_df])[self.target_columns] 
             result_df.to_parquet(os.path.join(self.base_path_data, model.save_path))
     
-    def predict(self, location_id, **time_kwargs):
-        if not getattr(self, '_cache'):
-            self._cache = self.get_data()   
-        Model = self._get_model_for_location(location_id)
+    @classmethod
+    def predict(cls, location_id, **time_kwargs):
+        if not cls.pred_data:
+            cls.pred_data = cls.get_data()
+        Model = cls._get_model_for_location(location_id)
 
-        return self.read_predict(Model, location_id, **time_kwargs)
+        return cls.read_predict(Model, location_id, **time_kwargs)
     
+    @classmethod
     @abstractmethod
-    def read_predict(self, Model, location_id, **time_kwargs):
+    def read_predict(cls, Model, location_id, **time_kwargs):
         pass
 
-    def _get_model_for_location(self, location_id) -> Type[AbstractModel]:
-        for Model in self.models:
+    @classmethod
+    def _get_model_for_location(cls, location_id) -> Type[AbstractModel]:
+        for Model in cls.models:
             if location_id in Model.related_location_ids:
                 return Model
         
