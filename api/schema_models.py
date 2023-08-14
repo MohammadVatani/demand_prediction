@@ -9,9 +9,15 @@ class IntervalField(str, Enum):
     TIME_INTERVAL = 'time_interval'
 
 
-class PredictModel(BaseModel):
+class ApiPostData(BaseModel):
     location_id: int
-    date: date
+    date: str
+
+    @validator('date')
+    def validate_passwords_match(cls, value):
+        if not re.match(r'^\d{4}-\d{2}-\d{2}$', value):
+            raise ValueError("Invalid date format. Use YYYY-MM-DD.")
+        return value
 
 
 class TrainModel(BaseModel):

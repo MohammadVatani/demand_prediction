@@ -88,7 +88,6 @@ class Prediction(ABC):
         if not cls.pred_data:
             cls.pred_data = cls.get_data()
         Model = cls._get_model_for_location(location_id)
-
         return cls.read_predict(Model, location_id, **time_kwargs)
     
     @classmethod

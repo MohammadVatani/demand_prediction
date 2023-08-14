@@ -109,6 +109,6 @@ featured_df[(featured_df['PULocationID'] == 79)].tail(8)
 featured_df.to_parquet(OUTPUT_PATH)
 ```
 
-```{python}
+```{python pycharm={'name': '#%%\n'}}
 
 ```

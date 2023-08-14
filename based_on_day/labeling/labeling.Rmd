@@ -12,16 +12,20 @@ jupyter:
     name: python3
 ---
 
+<!-- #region pycharm={"name": "#%% md\n"} -->
 ### import modules
+<!-- #endregion -->
 
 ```{python pycharm={'name': '#%%\n'}}
 import pandas as pd
 from itertools import product
 ```
 
+<!-- #region pycharm={"name": "#%% md\n"} -->
 ### config
+<!-- #endregion -->
 
-```{python}
+```{python pycharm={'name': '#%%\n'}}
 DATA_FILE_PATHS = 'D:/projects/rahnamcollege-ml/demand-prediction/data/input/'
 
 OUTPUT_PATH = 'D:/projects/rahnamcollege-ml/demand-prediction/data/label/label.parquet'
@@ -51,7 +55,7 @@ rides_df.head()
 ### aggregate data and labeling
 <!-- #endregion -->
 
-```{python}
+```{python pycharm={'name': '#%%\n'}}
 def labeling(rides_df: pd.DataFrame):
     aggregated_df = rides_df.groupby(['date', 'PULocationID']).size().reset_index(name='count')
     unique_dates = rides_df['date'].unique()
@@ -70,7 +74,9 @@ labels_df.head()
 
 ```
 
+<!-- #region pycharm={"name": "#%% md\n"} -->
 ### save labeling data
+<!-- #endregion -->
 
 ```{python pycharm={'name': '#%%\n'}}
 labels_df.to_parquet(OUTPUT_PATH)
