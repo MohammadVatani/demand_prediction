@@ -1,10 +1,10 @@
-from abc import ABC, abstractmethod, abstractproperty
-from typing import Dict, Type, List
+from abc import ABC, abstractmethod
+from typing import Type, List
 import pandas as pd
 import os
 
 
-class Model(ABC):
+class AbstractModel(ABC):
     name: str
     features: list
     label: str
@@ -36,13 +36,13 @@ class Model(ABC):
         return self._model.predict(x_test)
         
 
-
 class Prediction(ABC):
     base_path_data = './results'
     interval: str
-    models: List[Type(Model)]
+    models: List[Type[AbstractModel]]
     target_columns: List
-    
+    pred_field = 'pred'
+
     def __init__(self, max_date, cache=False) -> None:
         self.max_date = max_date
         if cache:
@@ -78,8 +78,8 @@ class Prediction(ABC):
             model = Model(train_df)
             model.fit()
 
-            train_df['pred'] = model.fitted_values
-            test_df['pred'] = model.predict(test_df[Model.features])
+            train_df[self.pred_field] = model.fitted_values
+            test_df[self.pred_field] = model.predict(test_df[Model.features])
             result_df = pd.concat([train_df, test_df])[self.target_columns] 
             result_df.to_parquet(os.path.join(self.base_path_data, model.save_path))
     
@@ -94,7 +94,7 @@ class Prediction(ABC):
     def read_predict(self, Model, location_id, **time_kwargs):
         pass
 
-    def _get_model_for_location(self, location_id) -> Type(Model):
+    def _get_model_for_location(self, location_id) -> Type[AbstractModel]:
         for Model in self.models:
             if location_id in Model.related_location_ids:
                 return Model
