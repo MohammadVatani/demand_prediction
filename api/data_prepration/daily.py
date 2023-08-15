@@ -48,7 +48,8 @@ class DailyDataPreparation(DataPreparation):
                 by=['date']).reset_index(drop=True)
             auto_model = pm.auto_arima(location_df['count'], seasonal=False, max_p=7)
             fitted_values = auto_model.predict_in_sample()
-            location_df['pred'] = fitted_values
+            location_df['arima'] = fitted_values
+            location_df.drop('count', axis=1, inplace=True)
             location_dfs.append(location_df)
         return pd.concat(location_dfs)
 

@@ -17,7 +17,7 @@ class AbstractModel(ABC):
         pass
 
     def get_model_instance(self):
-        return self.model_class(self.model_params)
+        return self.model_class(**self.model_params)
     
     def __init__(self, df) -> None:
         self.x = df[self.features]
