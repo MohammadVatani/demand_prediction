@@ -10,7 +10,8 @@ class DataPreparation(ABC):
     def load_data(cls):
         df = pd.read_parquet(cls.data_dir)
         df['date'] = df['tpep_pickup_datetime'].dt.date.astype(str)
-        df = df[(df['date'] > START_TRAINING_DATE) & (df['date'] < END_TRAINING_DATE)].reset_index(drop=True)
+        df = df[(df['date'] > START_TRAINING_DATE) & (df['date'] < END_TRAINING_DATE)]
+        df = df.sort_values(by='date').reset_index(drop=True)
         return df
 
     @classmethod
@@ -26,6 +27,8 @@ class DataPreparation(ABC):
     @classmethod
     def get_featured_data(cls):
         label_df = cls.get_labeled_df()
+        print('label_df', label_df.head())
+        print('feature engineering ...')
         return cls.add_features(label_df)
 
 
