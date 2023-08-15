@@ -56,20 +56,20 @@ class Prediction(ABC):
     def train_model(self, model_instance, x_train, y_train):
         model_instance.fit(x_train, y_train)
         return model_instance
-    
+
     def update_predictions(self):
         dataset = self.read_dataset()
         results = []
 
         for Model in self.models:
             df = dataset[dataset['PULocationID'].isin(Model.related_location_ids)]
-            train_df, test_df = df[df['date'] <= self.max_date], df[df['date'] > self.max_date]
+            print('feature engineering finished.')
+            train_df, test_df = df[df['date'] < self.max_date], df[df['date'] == self.max_date]
             model = Model(train_df)
             model.fit()
-            train_df[self.pred_field] = model.fitted_values
+            print('model fitted.')
             test_df[self.pred_field] = model.predict(test_df[Model.features])
-            result_df = pd.concat([train_df, test_df])[self.target_columns]
-            results.append(result_df)
+            results.append(test_df)
 
         pd.concat(results).to_parquet(self.results_path)
 
