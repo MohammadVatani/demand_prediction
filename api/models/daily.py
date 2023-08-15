@@ -1,8 +1,13 @@
+import logging
+
 import xgboost as xgb
 
-from base import Prediction, AbstractModel
-from ..config import high_demands, low_demands, mid_demands
+from .base import Prediction, AbstractModel
+from config import high_demands, low_demands, mid_demands
 from data_prepration import DailyDataPreparation
+
+
+logger = logging.getLogger('daily model')
 
 
 class Daily:
@@ -46,11 +51,8 @@ class LowDemandModel(Daily, AbstractModel):
     
 
 class DailyPrediction(Prediction):
+    results_path = 'data/results/daily.parquet'
+
     def read_dataset(self):
         return DailyDataPreparation.get_featured_data()
 
-    @classmethod
-    def read_predict(cls, Model, location_id, **time_kwargs):
-        location_df = cls.pred_data[Model.name]
-        row_item = location_df[location_df['date'] == time_kwargs['date']].iloc[0]
-        return row_item[cls.pred_field]

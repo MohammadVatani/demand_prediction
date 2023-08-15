@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from schema_models import ApiPostData, TrainModel
 from models import DailyPrediction
+from api_response import prepare_api_response
 
 
 app = FastAPI()
@@ -9,14 +10,9 @@ app = FastAPI()
 mapping = {TrainModel.intervals.TIME_INTERVAL: '', TrainModel.intervals.DAILY: DailyPrediction}
 
 
-@app.post("/prediction/locations/{location_id}/daily/")
-def predict_daily_demand(location_id: int, data: ApiPostData):
-    return DailyPrediction.predict(location_id, date=data.date)
-
-
-@app.post("/prediction/locations/{location_id}/time-interval/")
-def predict_time_interval_demand(location_id: int, data: ApiPostData):
-    return DailyPrediction.predict(location_id, date=data.date)
+@app.post("/prediction/locations/")
+def predict_daily_demand(data: ApiPostData):
+    return prepare_api_response(data)
 
 
 @app.post("/traning/")

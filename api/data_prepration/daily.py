@@ -37,7 +37,6 @@ class DailyDataPreparation(DataPreparation):
         df.dropna(inplace=True)
         df['arima'] = df['arima'] / df['last_week_demand']
         df['label'] = df['count'] / df['last_week_demand']
-        df.drop(['count'], axis=1, inplace=True)
         return df
 
     @classmethod
