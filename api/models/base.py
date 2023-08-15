@@ -63,11 +63,9 @@ class Prediction(ABC):
 
         for Model in self.models:
             df = dataset[dataset['PULocationID'].isin(Model.related_location_ids)]
-            print('feature engineering finished.')
             train_df, test_df = df[df['date'] < self.max_date], df[df['date'] == self.max_date]
             model = Model(train_df)
             model.fit()
-            print('model fitted.')
             test_df[self.pred_field] = model.predict(test_df[Model.features])
             results.append(test_df)
 
