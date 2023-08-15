@@ -19,13 +19,9 @@ class Daily(AbstractModel):
         'lag2-9',
         'lag3-10',
         'lag4-11',
-        # 'arima',
+        'arima',
     ]
     label = 'label'
-
-    @property
-    def save_path(self):
-        return f'daily/{self.name}/data.parquet'
 
     @property
     def model_class(self):

@@ -15,7 +15,7 @@ def predict_daily_demand(data: ApiPostData):
     return prepare_api_response(data)
 
 
-@app.post("/traning/")
+@app.post("/training/")
 def train_models(data: TrainModel):
     model_class = mapping.get(data.intervals)
     if model_class:
