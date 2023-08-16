@@ -5,20 +5,19 @@ from config import high_demands, low_demands, mid_demands
 
 
 class IntervalModel(AbstractModel):
-    name = 'interval_model'
-    model_params = {"n_estimator": 700, "max_depth": 5, "learning_rate": 0.1}
     features = [
         'time_interval_number',
         'PU_day_of_week',
         'last_day_demand',
         'last_week_demand',
-        'lag1-8',
-        'lag2-9',
-        'lag3-10',
-        'lag4-11',
+        'lag1',
+        'lag2',
+        'lag3',
+        'lag4',
+        'lag5',
+        'lag6'
     ]
-    label = 'count'
-    related_location_ids = [*low_demands, *mid_demands, *high_demands]
+    label = 'label'
 
     @property
     def model_class(self):
@@ -26,16 +25,36 @@ class IntervalModel(AbstractModel):
 
     @property
     def fitted_values(self):
-        return self._model.predict(self.x)
+        return self._model.predict(self.x) * self.x['last_week_demand']
 
     def predict(self, x_test):
-        return self._model.predict(x_test)
+        return self._model.predict(x_test) *  x_test['last_week_demand']
+    
+
+
+## TODO : set mdoel parameters
+class IntervalHighDemandModel(IntervalModel):
+    name = 'high demand interval'
+    model_params = {}
+    related_location_ids = high_demands
+
+
+class IntervalMidDemandModel(IntervalModel):
+    name = 'mid demand interval'
+    model_params = {}
+    related_location_ids = mid_demands
+
+
+class IntervalLowDemandModel(IntervalModel):
+    name = 'low demand interval'
+    model_params = {}
+    related_location_ids = low_demands
 
 
 class IntervalPrediction(Prediction):
     target_columns = ['date', 'time_interval_number', 'PULocationID', 'count', 'pred']
     results_path = 'data/results/interval.parquet'
-    models = [IntervalModel]
+    models = [IntervalHighDemandModel, IntervalMidDemandModel, IntervalLowDemandModel]
 
     def read_dataset(self):
         return IntervalDataPreparation.get_featured_data()

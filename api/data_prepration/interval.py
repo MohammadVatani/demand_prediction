@@ -52,8 +52,7 @@ class IntervalDataPreparation(DataPreparation):
         df = df.sort_values(['PULocationID', 'date', 'time_interval_number'])
         df['last_day_demand'] = df.groupby(['PULocationID'])['count'].shift(NUMBER_INTERVAL_PER_DAY)
         df['last_week_demand'] = df.groupby(['PULocationID'])['count'].shift(NUMBER_INTERVAL_PER_DAY * 7)
-        for i in range(1, 5):
-            df[f'lag{i}-{i + 7}'] = (df.groupby(['PULocationID'])['count'].shift(NUMBER_INTERVAL_PER_DAY * i)) / (
-                df.groupby(['PULocationID'])['count'].shift(NUMBER_INTERVAL_PER_DAY * (i + 7)))
+        for i in range(1, 7):
+            df[f'lag{i}'] = (df.groupby(['PULocationID'])['count'].shift(NUMBER_INTERVAL_PER_DAY * i)) 
         df.dropna(inplace=True)
         return df
