@@ -54,5 +54,6 @@ class IntervalDataPreparation(DataPreparation):
         df['last_week_demand'] = df.groupby(['PULocationID'])['count'].shift(NUMBER_INTERVAL_PER_DAY * 7)
         for i in range(1, 7):
             df[f'lag{i}'] = (df.groupby(['PULocationID'])['count'].shift(NUMBER_INTERVAL_PER_DAY * i)) 
+        df['label'] = df['count'] / df['last_week_demand']
         df.dropna(inplace=True)
         return df
