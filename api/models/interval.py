@@ -31,23 +31,21 @@ class IntervalModel(AbstractModel):
         return self._model.predict(x_test) *  x_test['last_week_demand']
     
 
-
-## TODO : set mdoel parameters
 class IntervalHighDemandModel(IntervalModel):
     name = 'high demand interval'
-    model_params = {}
+    model_params = {"learning_rate": 0.1, "max_depth": 3, "n_estimator": 700}
     related_location_ids = high_demands
 
 
 class IntervalMidDemandModel(IntervalModel):
     name = 'mid demand interval'
-    model_params = {}
+    model_params = {"learning_rate": 0.15, "max_depth": 5, "n_estimator": 100}
     related_location_ids = mid_demands
 
 
 class IntervalLowDemandModel(IntervalModel):
     name = 'low demand interval'
-    model_params = {}
+    model_params = {"learning_rate": 0.01, "max_depth": 5, "n_estimator": 700}
     related_location_ids = low_demands
 
 
