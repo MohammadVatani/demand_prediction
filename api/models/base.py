@@ -70,4 +70,3 @@ class Prediction(ABC):
             results.append(test_df)
 
         pd.concat(results).to_parquet(self.results_path)
-

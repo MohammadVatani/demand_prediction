@@ -40,6 +40,7 @@ class DropOutDataPreparation(DataPreparation):
         # Sort based on two columns: 'time_interval_number' (ascending) and 'date' (ascending)
         label_df = label_df.sort_values(
             by=['date', 'time_interval_number'], ascending=[True, True])
+        label_df = label_df[label_df['count'] != 0]
         return label_df
 
     @classmethod
@@ -59,5 +60,6 @@ class DropOutDataPreparation(DataPreparation):
             df[f'lag{i}/{i + 7}'] = (df.groupby(['PULocationID', 'DOLocationID'])['count'].shift(
                 NUMBER_INTERVAL_PER_DAY * i)) / (df.groupby(['PULocationID', 'DOLocationID'])['count'].shift(
                 NUMBER_INTERVAL_PER_DAY * (i + 7)))
+        df.dropna(inplace=True)
 
         return df
