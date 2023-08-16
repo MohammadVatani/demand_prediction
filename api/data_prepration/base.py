@@ -1,6 +1,9 @@
+import logging
 from abc import ABC, abstractmethod
 from config import START_TRAINING_DATE, END_TRAINING_DATE
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 class DataPreparation(ABC):
@@ -27,8 +30,7 @@ class DataPreparation(ABC):
     @classmethod
     def get_featured_data(cls):
         label_df = cls.get_labeled_df()
-        print('label_df', label_df.head())
-        print('feature engineering ...')
+        logger.info('feature engineering ...')
         return cls.add_features(label_df)
 
 
