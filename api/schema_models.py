@@ -7,6 +7,7 @@ import re
 class IntervalField(str, Enum):
     DAILY = 'daily'
     TIME_INTERVAL = 'time_interval'
+    DROPOUT = 'dropout'
 
 
 class ApiPostData(BaseModel):
