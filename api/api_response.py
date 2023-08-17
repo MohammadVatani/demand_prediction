@@ -1,12 +1,12 @@
 import pandas as pd
 
 from schema_models import ApiPostData
-from models import DailyPrediction, IntervalPrediction, DropoutPrediction
+from models import DailyPrediction, IntervalPrediction, DropoffPrediction
 from config import high_demands
 
 daily_df = pd.read_parquet(DailyPrediction.results_path)
 time_interval_df = pd.read_parquet(IntervalPrediction.results_path)
-dropout_df = pd.read_parquet(DropoutPrediction.results_path)
+dropout_df = pd.read_parquet(DropoffPrediction.results_path)
 
 
 def _get_dropout_dicts(df: pd.DataFrame):
@@ -38,7 +38,7 @@ def prepare_api_response(data: ApiPostData):
             (dropout_df['DOLocationID'].isin(high_demands))]
         print(rows)
 
-        top_data = rows[rows['real demand'] > 20].sort_values(by=['real demand'], ascending=False)
+        top_data = rows[rows['count'] > 20].sort_values(by=['count'], ascending=False)
 
         final_results = top_data.groupby('DOLocationID').apply(_get_dropout_dicts)
 

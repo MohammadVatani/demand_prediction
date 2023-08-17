@@ -1,3 +1,4 @@
 from .daily import DailyPrediction
 from .interval import IntervalPrediction
-from .dropout import DropoutPrediction
+from .dropout import DropoffPrediction
+

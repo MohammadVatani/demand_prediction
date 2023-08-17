@@ -1,10 +1,10 @@
 from .base import Prediction, AbstractModel
-from data_prepration import DropOutDataPreparation
+from data_prepration import DropoffDataPreparation
 import xgboost as xgb
 from config import high_demands, low_demands, mid_demands
 
 
-class DropoutModel(AbstractModel):
+class DropoffModel(AbstractModel):
     name = 'dropout_model'
     model_params = {'learning_rate': 0.01, 'max_depth': 5, 'n_estimators': 1000}
     features = [
@@ -33,10 +33,10 @@ class DropoutModel(AbstractModel):
         return self._model.predict(x_test)
 
 
-class DropoutPrediction(Prediction):
+class DropoffPrediction(Prediction):
     target_columns = ['date', 'time_interval_number', 'PULocationID', 'DOLocationID', 'count', 'pred']
-    results_path = 'data/results/dropout.parquet'
-    models = [DropoutModel]
+    results_path = 'data/results/dropoff.parquet'
+    models = [DropoffModel]
 
     def read_dataset(self):
-        return DropOutDataPreparation.get_featured_data()
+        return DropoffDataPreparation.get_featured_data()

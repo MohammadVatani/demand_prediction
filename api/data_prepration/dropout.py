@@ -5,7 +5,7 @@ from itertools import product
 import numpy as np
 
 
-class DropOutDataPreparation(DataPreparation):
+class DropoffDataPreparation(DataPreparation):
     @classmethod
     def _prepare_data(cls):
         df = cls.load_data()

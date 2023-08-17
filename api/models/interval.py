@@ -28,7 +28,7 @@ class IntervalModel(AbstractModel):
         return self._model.predict(self.x) * self.x['last_week_demand']
 
     def predict(self, x_test):
-        return self._model.predict(x_test) *  x_test['last_week_demand']
+        return self._model.predict(x_test) * x_test['last_week_demand']
     
 
 class IntervalHighDemandModel(IntervalModel):
